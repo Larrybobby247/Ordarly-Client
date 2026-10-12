@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, STATES } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Alert, Field, Badge } from '../../components/ui';
 import ImageField from '../../components/ImageField';
+import PlaceSearch from '../../components/PlaceSearch';
 import { Link } from 'react-router-dom';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -45,12 +46,13 @@ function CustomDomain({ isPro }) {
 
 export default function Settings() {
   const { data, reload } = useDash(); const r = data.restaurant;
-  const [f, setF] = useState({ name: r.name, description: r.description || '', phone: r.phone || '', email: r.email || '', whatsapp: r.whatsapp || '', address: r.address || '', state: r.state || 'Lagos', logo: r.logo || '', cover: r.cover || '', acceptingOrders: r.acceptingOrders, openingHours: r.openingHours?.length ? r.openingHours : DAYS.map((_, day) => ({ day, open: '09:00', close: '21:00', closed: false })) });
+  const [f, setF] = useState({ name: r.name, description: r.description || '', phone: r.phone || '', email: r.email || '', whatsapp: r.whatsapp || '', address: r.address || '', state: r.state || 'Lagos', logo: r.logo || '', cover: r.cover || '', acceptingOrders: r.acceptingOrders, placeId: '', sessionToken: '', openingHours: r.openingHours?.length ? r.openingHours : DAYS.map((_, day) => ({ day, open: '09:00', close: '21:00', closed: false })) });
   const [slug, setSlug] = useState(r.slug); const [msg, setMsg] = useState(null);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const searchPlaces = useCallback((input, sessionToken) => api.post('/restaurant/places/autocomplete', { input, sessionToken }).then((x) => x.suggestions || x), []);
   const save = async (e) => {
     e.preventDefault(); setMsg(null);
-    try { await api.patch('/restaurant', { ...f, logo: f.logo, cover: f.cover }); await reload(); setMsg({ kind: 'ok', text: 'Saved.' }); } catch (x) { setMsg({ kind: 'error', text: x.message }); }
+    try { const body = { ...f }; if (!body.placeId) { delete body.placeId; delete body.sessionToken; } await api.patch('/restaurant', body); await reload(); setMsg({ kind: 'ok', text: 'Saved.' }); } catch (x) { setMsg({ kind: 'error', text: x.message }); }
   };
   const saveSlug = async () => { try { await api.patch('/restaurant/slug', { slug }); await reload(); setMsg({ kind: 'ok', text: 'Page link updated. Old link no longer works.' }); } catch (x) { setMsg({ kind: 'error', text: x.message }); } };
   const setHour = (i, k, v) => setF({ ...f, openingHours: f.openingHours.map((h, j) => (j === i ? { ...h, [k]: v } : h)) });
@@ -68,7 +70,11 @@ export default function Settings() {
           <Field label="WhatsApp number" hint="Include the country code, e.g. 2348012345678"><input className="input" value={f.whatsapp} onChange={set('whatsapp')} /></Field>
           <Field label="State"><select className="input" value={f.state} onChange={set('state')}>{STATES.map((s) => <option key={s}>{s}</option>)}</select></Field>
         </div>
-        <Field label="Address"><input className="input" value={f.address} onChange={set('address')} /></Field>
+        <Field label="Address" hint="Start typing and pick from the list to update your delivery starting point. Typing without picking only changes the text shown on your page.">
+          <PlaceSearch id="settings-address" search={searchPlaces} initial={r.address || ''} placeholder="Search your restaurant address"
+            onText={(t) => setF((x) => ({ ...x, address: t, placeId: '', sessionToken: '' }))}
+            onPick={(s, sessionToken) => { if (s) setF((x) => ({ ...x, address: s.text || `${s.main}, ${s.secondary}`, placeId: s.placeId, sessionToken })); }} />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <ImageField label="Logo" value={f.logo} onChange={(v) => setF({ ...f, logo: v })} />
           <ImageField label="Cover image" value={f.cover} onChange={(v) => setF({ ...f, cover: v })} />

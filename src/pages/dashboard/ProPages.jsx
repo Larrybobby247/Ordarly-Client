@@ -1,46 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { api, naira, STATES } from '../../lib/api';
+import { api, naira } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Alert, Badge, ProLock, Spinner, Field } from '../../components/ui';
 import { Stat } from './Overview';
 
-/* ---------------- Fulfillment ---------------- */
-export function Fulfillment() {
-  const { data } = useDash(); const [d, setD] = useState(null); const [zones, setZones] = useState([]); const [msg, setMsg] = useState(null);
-  useEffect(() => { api.get('/restaurant/fulfillment').then((r) => { setD(r.fulfillment); setZones(r.zones); }); }, []);
-  if (!data.isPro) return <ProLock title="Delivery, pickup and dine-in">Free restaurants coordinate pickup directly over WhatsApp.</ProLock>;
-  if (!d) return <Spinner />;
-  const toggleState = (s) => setZones(zones.find((z) => z.state === s) ? zones.filter((z) => z.state !== s) : [...zones, { state: s, fee: 0, active: true }]);
-  const save = async () => {
-    setMsg(null);
-    try { await api.put('/restaurant/fulfillment', d); await api.put('/restaurant/delivery-zones', { zones: zones.map((z) => ({ state: z.state, fee: Number(z.fee) || 0, active: z.active !== false })) }); setMsg({ kind: 'ok', text: 'Saved.' }); }
-    catch (e) { setMsg({ kind: 'error', text: e.message }); }
-  };
-  const T = ({ k, label, desc }) => <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={!!d[k]} onChange={(e) => setD({ ...d, [k]: e.target.checked })} /><span><b>{label}</b><span className="block text-xs text-ink-500">{desc}</span></span></label>;
-  return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-      <div className="card space-y-4 p-6"><h3 className="font-bold">Home delivery</h3>
-        <T k="deliveryEnabled" label="Offer home delivery" desc="Customers pick a state you serve; the fee below is added to their total." />
-        {d.deliveryEnabled && (<>
-          <div className="flex flex-wrap gap-1.5">{STATES.map((s) => <button key={s} onClick={() => toggleState(s)} className={`chip ${zones.find((z) => z.state === s) && '!border-brand-500 !bg-brand-50 !text-brand-700'}`}>{s}</button>)}</div>
-          <div className="space-y-2">{zones.sort((a, b) => a.state.localeCompare(b.state)).map((z) => (
-            <div key={z.state} className="flex items-center gap-3 rounded-2xl bg-mint-50 p-3 text-sm"><b className="w-32">{z.state}</b>₦<input type="number" min="0" className="input !w-32 !py-1.5" value={z.fee} onChange={(e) => setZones(zones.map((x) => (x.state === z.state ? { ...x, fee: e.target.value } : x)))} />
-              <button className="ml-auto text-xs text-red-600" onClick={() => toggleState(z.state)}>Remove</button></div>))}
-            {zones.length === 0 && <p className="text-xs text-ink-500">Select at least one state. Delivery is hidden at checkout until you add one.</p>}</div>
-        </>)}
-      </div>
-      <div className="card space-y-4 p-6"><h3 className="font-bold">Pickup</h3>
-        <T k="pickupEnabled" label="Customer pickup" desc="No delivery fee. Your address is shown to the customer." />
-        <textarea className="input" rows={2} placeholder="Collection instructions (optional)" value={d.pickupInstructions || ''} onChange={(e) => setD({ ...d, pickupInstructions: e.target.value })} /></div>
-      <div className="card space-y-4 p-6"><h3 className="font-bold">Dine-in</h3>
-        <T k="dineInEnabled" label="Eat at the restaurant" desc="Customers order ahead for dining on site. No delivery fee." />
-        <T k="askTableNumber" label="Ask for a table number" desc="Optional seating reference." /></div>
-      <button className="btn-primary" onClick={save}>Save fulfilment settings</button>
-    </div>
-  );
-}
 
 /* ---------------- Paystack connect ---------------- */
 function PaystackConnect({ p, reload, setMsg, enabled }) {
@@ -53,7 +17,7 @@ function PaystackConnect({ p, reload, setMsg, enabled }) {
   return (
     <div className="mt-4 space-y-3">
       {p.paystack.settlementAccount && <div className="rounded-2xl bg-mint-50 p-3 text-sm">Settlement account: {bankName || ''} {p.paystack.settlementAccount}</div>}
-      <div className="text-xs text-ink-500">Money flow: customer pays → Paystack collects and allocates your share to your subaccount (the platform's share is 0%) → Paystack settles to your bank on its own schedule. Collection, allocation and settlement are separate steps; Orderly cannot make settlement instant.</div>
+      <div className="text-xs text-ink-500">Money flow: customer pays → Paystack collects and allocates your share to your subaccount (the platform's share is 0%) → Paystack settles to your bank on its own schedule. Collection, allocation and settlement are separate steps; Ordarly cannot make settlement instant.</div>
       {status === 'pending' && <Alert kind="info">Paystack has not confirmed this subaccount yet. Online payment stays hidden from customers until it does.</Alert>}
       {status === 'attention' && <Alert>Paystack reports a problem with this subaccount. Reconnect your account or contact support.</Alert>}
       <div className="flex flex-wrap gap-2">
@@ -90,7 +54,7 @@ export function Payments() {
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       <div className="card p-6">
         <div className="flex items-center justify-between"><h3 className="font-bold">Paystack online payments <Badge color="green">Recommended</Badge></h3><Badge color={ps[0]}>{ps[1]}</Badge></div>
-        <p className="mt-2 text-sm text-ink-500">Payments are verified server-side, so orders are only marked paid when Paystack confirms. Proceeds go to your own approved Paystack arrangement. Orderly takes no commission, and the processing fee is borne by your restaurant. Settlement timing is controlled by Paystack, not Orderly.</p>
+        <p className="mt-2 text-sm text-ink-500">Payments are verified server-side, so orders are only marked paid when Paystack confirms. Proceeds go to your own approved Paystack arrangement. Ordarly takes no commission, and the processing fee is borne by your restaurant. Settlement timing is controlled by Paystack, not Ordarly.</p>
         <PaystackConnect p={p} reload={async () => { await load(); await reload(); }} setMsg={setMsg} enabled={data.restaurant.payments.paystackEnabled} />
       </div>
       <form onSubmit={saveBank} className="card space-y-4 p-6">
@@ -182,7 +146,7 @@ export function Subscription() {
         </div>
       </div>
       <div className="card p-6"><h3 className="mb-2 font-bold">Subscription payments</h3>
-        <p className="mb-3 text-xs text-ink-500">These are your Orderly subscription payments only, separate from customer food orders.</p>
+        <p className="mb-3 text-xs text-ink-500">These are your Ordarly subscription payments only, separate from customer food orders.</p>
         {s.payments.length === 0 ? <p className="text-sm text-ink-500">No payments yet.</p> : s.payments.map((p) => (
           <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge></span></div>))}
       </div>

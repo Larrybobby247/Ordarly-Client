@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, upload, naira, ORDER_LABEL, PAY_LABEL } from '../../lib/api';
 import { Spinner, Badge, statusColor, payColor, Logo, Alert } from '../../components/ui';
+import { ReportModal } from '../../components/ReportForm';
 
 const FLOW = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
 
 export default function Track() {
   const { token } = useParams(); const [o, setO] = useState(null); const [err, setErr] = useState('');
-  const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [report, setReport] = useState(false);
   const refetch = () => api.get(`/public/track/${token}`).then(setO);
   const run = async (fn) => { setBusy(true); setMsg(null); try { await fn(); } catch (e) { setMsg({ kind: 'error', text: e.message }); } finally { setBusy(false); } };
   // Returning from Paystack: ask the SERVER to verify. The URL alone proves nothing.
@@ -35,7 +36,7 @@ export default function Track() {
         <div><div className="text-xs text-ink-500">{o.restaurant}</div><div className="font-display text-2xl font-bold">{o.reference}</div></div>
         <div className="flex flex-wrap gap-2"><Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge><Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge></div>
         {o.status !== 'cancelled' && <div className="flex items-center">{FLOW.map((s, i) => <div key={s} className="flex flex-1 items-center"><div className={`h-3 w-3 rounded-full ${i <= idx ? 'bg-brand-500' : 'bg-ink-300'}`} />{i < FLOW.length - 1 && <div className={`h-0.5 flex-1 ${i < idx ? 'bg-brand-500' : 'bg-ink-300'}`} />}</div>)}</div>}
-        <div className="rounded-2xl bg-mint-50 p-4 text-sm">{o.items.map((i, k) => <div key={k} className="flex justify-between py-0.5"><span>{i.quantity} × {i.name}</span><span>{naira(i.price * i.quantity)}</span></div>)}
+        <div className="rounded-2xl bg-mint-50 p-4 text-sm">{o.items.map((i, k) => <div key={k} className="py-0.5"><div className="flex justify-between"><span>{i.quantity} × {i.name}</span><span>{naira(i.price * i.quantity)}</span></div>{(i.addons || []).length > 0 && <div className="pl-4 text-xs text-ink-500">+ {i.addons.map((a) => a.name).join(', ')}</div>}</div>)}
           {o.deliveryFee > 0 && <div className="flex justify-between py-0.5"><span>Delivery</span><span>{naira(o.deliveryFee)}</span></div>}
           <div className="mt-2 flex justify-between border-t pt-2 font-bold"><span>Total</span><span>{naira(o.total)}</span></div></div>
         <div className="text-sm text-ink-700"><b>{o.fulfillment?.replace('_', ' ')}</b>{o.deliveryAddress && <> · {o.deliveryAddress}</>}{o.pickupAddress && <> · Collect from {o.pickupAddress}</>}</div>
@@ -50,8 +51,9 @@ export default function Track() {
             <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; if (f.size > 5 * 1024 * 1024) return setMsg({ kind: 'error', text: 'Image must be under 5 MB.' }); run(async () => { await upload(`/public/track/${token}/proof`, f, 'proof'); setMsg({ kind: 'ok', text: 'Proof uploaded. The restaurant will review it.' }); await refetch(); }); e.target.value = ''; }} />
           </div>
         )}
-        <p className="text-xs text-ink-500">This page refreshes automatically. Last update {new Date(o.updatedAt).toLocaleString()}.</p>
+        <p className="text-xs text-ink-500">This page refreshes automatically. Last update {new Date(o.updatedAt).toLocaleString()}. <button className="underline" onClick={() => setReport(true)}>Report a problem with this order</button></p>
       </div>
+      {report && <ReportModal onClose={() => setReport(false)} source="tracking" orderRef={o.reference} defaultKind="complaint" />}
     </div>
   );
 }

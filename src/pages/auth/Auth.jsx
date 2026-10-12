@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, STATES } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { Logo, Field, Alert } from '../../components/ui';
+import { Logo, Field, Alert, PasswordInput } from '../../components/ui';
+import PlaceSearch from '../../components/PlaceSearch';
 
 const Shell = ({ title, sub, children }) => (
   <div className="grid min-h-screen md:grid-cols-2">
@@ -15,7 +16,7 @@ const Shell = ({ title, sub, children }) => (
       </div>
     </div>
     <div className="relative hidden bg-brand-500 p-12 text-white md:flex md:flex-col md:justify-end">
-      <div className="max-w-sm"><div className="font-display text-4xl font-bold leading-tight">Your menu. Your link. Your orders.</div><p className="mt-3 text-white/80">Join restaurants taking cleaner orders with Orderly.</p></div>
+      <div className="max-w-sm"><div className="font-display text-4xl font-bold leading-tight">Your menu. Your link. Your orders.</div><p className="mt-3 text-white/80">Join restaurants taking cleaner orders with Ordarly.</p></div>
     </div>
   </div>
 );
@@ -33,7 +34,7 @@ export function Login() {
       <form onSubmit={go} className="space-y-4">
         <Alert>{err}</Alert>
         <Field label="Email"><input className="input" type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></Field>
-        <Field label="Password"><input className="input" type="password" required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
+        <Field label="Password"><PasswordInput required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></Field>
         <button className="btn-primary w-full" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         <div className="flex justify-between text-sm"><Link to="/forgot-password" className="text-brand-600">Forgot password?</Link><Link to="/register" className="text-brand-600">Create account</Link></div>
       </form>
@@ -42,7 +43,8 @@ export function Login() {
 }
 
 export function Register() {
-  const [f, setF] = useState({ name: '', restaurantName: '', email: '', phone: '', password: '', address: '', state: 'Lagos' });
+  const [f, setF] = useState({ name: '', restaurantName: '', email: '', phone: '', password: '', address: '', state: 'Lagos', placeId: '', sessionToken: '' });
+  const searchPlaces = useCallback((input, sessionToken) => api.post('/public/places/autocomplete', { input, sessionToken }).then((r) => r.suggestions || r), []);
   const [err, setErr] = useState(''); const [done, setDone] = useState(false); const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const go = async (e) => {
@@ -64,10 +66,14 @@ export function Register() {
           <Field label="Email"><input className="input" type="email" required value={f.email} onChange={set('email')} /></Field>
           <Field label="Phone"><input className="input" required placeholder="08012345678" value={f.phone} onChange={set('phone')} /></Field>
         </div>
-        <Field label="Restaurant address"><input className="input" required value={f.address} onChange={set('address')} /></Field>
+        <Field label="Restaurant address" hint="Start typing and pick your address from the list. This sets your delivery starting point.">
+          <PlaceSearch id="reg-address" search={searchPlaces} initial="" placeholder="e.g. 12 Admiralty Way, Lekki"
+            onText={(t) => setF((x) => ({ ...x, address: t, placeId: '', sessionToken: '' }))}
+            onPick={(s, sessionToken) => { if (s) setF((x) => ({ ...x, address: s.text || `${s.main}, ${s.secondary}`, placeId: s.placeId, sessionToken })); }} />
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="State"><select className="input" value={f.state} onChange={set('state')}>{STATES.map((s) => <option key={s}>{s}</option>)}</select></Field>
-          <Field label="Password" hint="At least 8 characters"><input className="input" type="password" minLength={8} required value={f.password} onChange={set('password')} /></Field>
+          <Field label="Password" hint="At least 8 characters"><PasswordInput minLength={8} required value={f.password} onChange={set('password')} /></Field>
         </div>
         <button className="btn-primary w-full" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
         <p className="text-center text-xs text-ink-500">By signing up you agree to our <Link to="/terms" className="underline">Terms</Link> and <Link to="/privacy" className="underline">Privacy Policy</Link>. You can add your logo and cover image in Settings after signing in.</p>
@@ -107,7 +113,7 @@ export function Reset() {
     <Shell title="Choose a new password" sub="At least 8 characters.">
       <form onSubmit={async (e) => { e.preventDefault(); try { await api.post('/auth/reset-password', { token: sp.get('token'), password: pw }); nav('/login'); } catch (x) { setErr(x.message); } }} className="space-y-4">
         <Alert>{err}</Alert>
-        <Field label="New password"><input className="input" type="password" minLength={8} required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
+        <Field label="New password"><PasswordInput minLength={8} required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
         <button className="btn-primary w-full">Update password</button>
       </form>
     </Shell>

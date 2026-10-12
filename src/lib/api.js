@@ -49,3 +49,8 @@ export const NEXT_STATUS = {
   accepted: ['preparing', 'ready', 'cancelled'], preparing: ['ready', 'cancelled'],
   ready: ['out_for_delivery', 'completed', 'cancelled'], out_for_delivery: ['completed', 'cancelled'],
 };
+
+// Neighbourhood helpers (must match the server's normalizeArea so matching never depends on capitalisation)
+export const normalizeArea = (s = '') =>
+  String(s).toLowerCase().replace(/[^a-z0-9\s\-'./]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60);
+export const titleCase = (s = '') => String(s).replace(/\b\w/g, (c) => c.toUpperCase());

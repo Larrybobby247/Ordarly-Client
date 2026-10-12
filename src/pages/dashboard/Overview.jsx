@@ -9,7 +9,7 @@ export const Stat = ({ label, value, tone = 'bg-brand-50 text-brand-600' }) => (
 );
 
 export default function Overview() {
-  const { data } = useDash(); const [a, setA] = useState(null);
+  const { data, summary } = useDash(); const [a, setA] = useState(null);
   useEffect(() => { api.get('/restaurant/analytics').then(setA); }, []);
   if (!a) return <Spinner />;
   const r = data.restaurant;
@@ -18,8 +18,18 @@ export default function Overview() {
     !r.logo && ['Add a logo and cover image', '/dashboard/settings'],
     !data.isPro && ['Try Pro free for 14 days', '/dashboard/subscription'],
   ].filter(Boolean);
+  const review = [
+    [summary?.newOrders, 'new order', 'waiting to be accepted', '/dashboard/orders'],
+    [summary?.proofsToReview, 'bank-transfer proof', 'to check', '/dashboard/orders'],
+    [summary?.unreadMessages, 'unread customer message', 'to answer', '/dashboard/messages'],
+    [summary?.activeReports, 'report', 'still open with Ordarly', '/dashboard/reports'],
+  ].filter(([n]) => n > 0);
   return (
     <div className="space-y-6">
+      <div className="card p-5"><div className="mb-2 font-bold">Tasks to review</div>
+        {review.length === 0 ? <p className="text-sm text-ink-500">You're all caught up. New orders and messages will show up here.</p>
+          : review.map(([n, one, tail, to]) => <Link key={one} to={to} className="flex items-center justify-between gap-3 border-t border-black/5 py-2.5 text-sm first:border-0"><span><span className="mr-2 inline-grid h-6 min-w-6 place-items-center rounded-full bg-tomato-500 px-1.5 text-xs font-bold text-white">{n}</span>{one}{n === 1 ? '' : 's'} {tail}</span><span className="text-brand-600">Open →</span></Link>)}
+      </div>
       {todo.length > 0 && (
         <div className="card p-5"><div className="mb-2 font-bold">Setup reminders</div>
           {todo.map(([t, to]) => <Link key={t} to={to} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm first:border-0"><span>{t}</span><span className="text-brand-600">Fix →</span></Link>)}

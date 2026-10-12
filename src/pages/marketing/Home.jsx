@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import PricingPlans from '../../components/PricingPlans';
 
 function MiniOrder() {
   return (
     <div className="w-60 rounded-3xl bg-white p-4 shadow-card">
       <div className="mb-3 flex items-center justify-between text-xs font-semibold"><span>New order</span><span className="rounded-full bg-amber-50 px-2 py-0.5 text-amber-700">Pending</span></div>
-      {[['2 × Jollof rice & chicken', '₦7,000'], ['1 × Suya platter', '₦4,500'], ['Delivery · Lagos', '₦2,500']].map(([a, b]) => (
+      {[['2 × Jollof rice & chicken', '₦7,000'], ['1 × Suya platter', '₦4,500'], ['Delivery · 4.2 km', '₦1,400']].map(([a, b]) => (
         <div key={a} className="flex justify-between border-t border-black/5 py-2 text-xs"><span className="text-ink-700">{a}</span><b>{b}</b></div>
       ))}
-      <div className="mt-2 flex justify-between rounded-2xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700"><span>Total</span><span>₦14,000</span></div>
+      <div className="mt-2 flex justify-between rounded-2xl bg-brand-50 px-3 py-2 text-xs font-bold text-brand-700"><span>Total</span><span>₦12,900</span></div>
     </div>
   );
 }
@@ -34,7 +35,7 @@ function PhoneMenu() {
 const faqs = [
   ['Is the Free plan really free?', 'Yes. Up to 10 active meals and unlimited WhatsApp order requests, no card needed.'],
   ['Do my customers need an account?', 'Never. They open your link, pick meals and order.'],
-  ['Where does the money go?', 'Food payments go to your own Paystack arrangement or bank account. Orderly never holds or redistributes your sales.'],
+  ['Where does the money go?', 'Food payments go to your own Paystack arrangement or bank account. Ordarly never holds or redistributes your sales.'],
 ];
 
 export default function Home() {
@@ -53,7 +54,7 @@ export default function Home() {
             <Link to="/register" className="btn-primary px-6 py-3">Create your page — free</Link>
             <Link to="/how-it-works" className="btn-ghost px-6 py-3">See how it works</Link>
           </div>
-          <div className="mt-6 flex flex-wrap gap-2">{['WhatsApp orders', 'Paystack payments', 'Delivery by state', 'Order tracking', 'QR codes'].map((t) => <span key={t} className="chip">{t}</span>)}</div>
+          <div className="mt-6 flex flex-wrap gap-2">{['WhatsApp orders', 'Paystack payments', 'Distance-based delivery', 'Meal add-ons', 'Order tracking', 'QR codes'].map((t) => <span key={t} className="chip">{t}</span>)}</div>
         </div>
         <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-brand-100 via-mint-100 to-amber-50 p-8">
           <PhoneMenu />
@@ -70,7 +71,7 @@ export default function Home() {
             <h3 className="text-lg font-bold">Your own page, your own link</h3>
             <p className="mt-1 max-w-md text-sm text-white/80">Share it on WhatsApp, Instagram or a printed QR code. Pro restaurants can even use their own domain.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {[['orderly.ng/mama-put', 'Public link'], ['order.mamaput.com', 'Custom domain (Pro)'], ['QR code', 'Print-ready (Pro)']].map(([a, b]) => (
+              {[['ordarly.ng/mama-put', 'Public link'], ['order.mamaput.com', 'Custom domain (Pro)'], ['QR code', 'Print-ready (Pro)']].map(([a, b]) => (
                 <div key={a} className="rounded-2xl bg-white p-4 text-ink-900"><div className="text-xs text-ink-500">{b}</div><div className="mt-1 break-all text-sm font-bold">{a}</div></div>
               ))}
             </div>
@@ -106,6 +107,17 @@ export default function Home() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="mt-24">
+        <div className="mx-auto max-w-3xl px-5 text-center">
+          <span className="eyebrow">Pricing</span>
+          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">Start free. <span className="text-brand-500">Upgrade when you're ready.</span></h2>
+          <p className="mx-auto mb-8 mt-3 max-w-xl text-ink-500">No commission on your food sales, ever. Just a flat monthly price for Pro.</p>
+        </div>
+        <PricingPlans />
+        <p className="mt-4 text-center text-xs text-ink-500"><Link to="/pricing" className="underline">Full pricing details</Link></p>
       </section>
 
       {/* CTA */}

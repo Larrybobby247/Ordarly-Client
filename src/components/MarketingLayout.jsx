@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { Logo } from './ui';
+import { PHONE, WHATSAPP_URL, usePlatform } from '../lib/platform';
 
 const links = [['/how-it-works', 'How it works'], ['/pricing', 'Pricing'], ['/about', 'About'], ['/faq', 'FAQ'], ['/contact', 'Contact']];
 
 export default function MarketingLayout() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false); const { supportEmail } = usePlatform();
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-black/5 bg-mint-50/85 backdrop-blur">
@@ -37,6 +38,9 @@ export default function MarketingLayout() {
           <div className="md:col-span-2">
             <Logo light />
             <p className="mt-4 max-w-sm text-sm text-white/60">Online ordering pages for Nigerian restaurants. Take orders on WhatsApp for free, or go Pro for checkout, delivery and verified payments.</p>
+            <ul className="mt-4 space-y-1 text-sm text-white/70">
+              <li><a href={WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp: {PHONE}</a></li><li><a href={`tel:${PHONE}`}>Phone: {PHONE}</a></li><li><a href={`mailto:${supportEmail}`}>Email: {supportEmail}</a></li>
+            </ul>
           </div>
           <div className="text-sm">
             <div className="mb-3 font-semibold">Product</div>
@@ -51,7 +55,7 @@ export default function MarketingLayout() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">© {new Date().getFullYear()} Orderly. All rights reserved.</div>
+        <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">© {new Date().getFullYear()} Ordarly. All rights reserved.</div>
       </footer>
     </div>
   );
