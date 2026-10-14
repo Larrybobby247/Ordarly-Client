@@ -1,8 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, naira, ORDER_LABEL, PAY_LABEL, NEXT_STATUS } from '../../lib/api';
 import ProofReview from './ProofReview';
 import { Badge, statusColor, payColor, Spinner, Alert } from '../../components/ui';
 import { useDash } from '../../components/DashboardLayout';
+
+const PAID = ['paid', 'paid_manual'];
+const needsPayment = (o) => o.channel === 'checkout' && ['paystack', 'bank_transfer'].includes(o.paymentMethod) && !PAID.includes(o.paymentStatus);
 
 const TILES = [
   ['Pending', ['pending', 'awaiting_whatsapp'], 'bg-amber-50 text-amber-700'],
@@ -17,13 +20,14 @@ const TILES = [
 export default function Orders() {
   const [f, setF] = useState({ q: '', status: '', fulfillment: '', paymentMethod: '' });
   const [res, setRes] = useState(null); const [sel, setSel] = useState(null); const [err, setErr] = useState('');
-  const { refreshSummary } = useDash(); const [today, setToday] = useState(null);
+  const { refreshSummary } = useDash(); const refreshRef = useRef(refreshSummary); refreshRef.current = refreshSummary; // a ref keeps load() stable, so the page never re-requests itself in a loop
+  const [today, setToday] = useState({ byStatus: {}, total: 0, waiting: 0 });
   const loadToday = useCallback(() => api.get('/orders/summary').then(setToday).catch(() => {}), []);
   const load = useCallback(() => {
     const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
     api.get('/orders?' + qs).then(setRes);
-    loadToday(); refreshSummary?.();
-  }, [f, loadToday, refreshSummary]);
+    loadToday(); refreshRef.current?.();
+  }, [f, loadToday]);
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [load]);
   useEffect(() => { const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]); // pick up new orders without a refresh
 
@@ -32,14 +36,14 @@ export default function Orders() {
   return (
     <div className="space-y-4">
       <section aria-label="Today's orders">
-        <div className="mb-2 flex items-baseline justify-between"><h2 className="font-bold">Today</h2><span className="text-xs text-ink-500">{today ? `${today.total} order${today.total === 1 ? '' : 's'} placed today (Lagos time)` : ''}</span></div>
+        <div className="mb-2 flex items-baseline justify-between"><h2 className="font-bold">Today</h2><span className="text-xs text-ink-500">{`${today.total || 0} order${today.total === 1 ? '' : 's'} placed today (Lagos time)`}</span></div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
           {TILES.map(([label, keys, tone]) => {
-            const n = today ? keys.reduce((a, k) => a + (today.byStatus[k] || 0), 0) : '–';
+            const n = keys.reduce((a, k) => a + ((today.byStatus || {})[k] || 0), 0);
             return <div key={label} className="card p-3"><div className={`inline-block rounded-lg px-2 py-0.5 text-[11px] font-bold ${tone}`}>{label}</div><div className="mt-1 font-display text-2xl font-bold">{n}</div></div>;
           })}
         </div>
-        {today?.waiting > 0 && <p className="mt-2 text-xs text-ink-500"><b>{today.waiting}</b> order{today.waiting === 1 ? ' is' : 's are'} waiting for you to accept (including earlier days).</p>}
+        {today.waiting > 0 && <p className="mt-2 text-xs text-ink-500"><b>{today.waiting}</b> order{today.waiting === 1 ? ' is' : 's are'} waiting for you to accept (including earlier days).</p>}
       </section>
       <div className="card grid gap-3 p-4 sm:grid-cols-4">
         <input className="input" placeholder="Search ref, name, phone" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
@@ -74,8 +78,11 @@ export default function Orders() {
             <div className="mt-3 flex flex-wrap gap-2"><Badge color={statusColor(sel.status)}>{ORDER_LABEL[sel.status]}</Badge>{sel.channel === 'checkout' && <><Badge color={payColor(sel.paymentStatus)}>{PAY_LABEL[sel.paymentStatus]}</Badge><Badge>{sel.paymentMethod.replace('_', ' ')}</Badge></>}</div>
             {sel.paymentMethod === 'bank_transfer' && <ProofReview order={sel} onDone={(o) => { setSel(o); load(); }} />}
             {err && <div className="mt-3"><Alert>{err}</Alert></div>}
+            {needsPayment(sel) && sel.status !== 'cancelled' && (
+              <div className="mt-4"><Alert kind="info"><b>Payment not confirmed yet.</b> {sel.paymentMethod === 'bank_transfer' ? 'Review the transfer proof above. You can accept the order once you confirm the money arrived.' : 'You can accept this order as soon as Paystack confirms the payment.'}
+                {sel.paymentMethod === 'paystack' && <button className="ml-2 font-semibold underline" onClick={() => act(() => api.post(`/orders/${sel._id}/recheck-payment`))}>Check payment now</button>}</Alert></div>)}
             <div className="mt-5 flex flex-wrap gap-2">
-              {(NEXT_STATUS[sel.status] || []).filter((s) => !(sel.channel === 'whatsapp' && s === 'out_for_delivery')).map((s) => (
+              {(NEXT_STATUS[sel.status] || []).filter((s) => !(sel.channel === 'whatsapp' && s === 'out_for_delivery')).filter((s) => s === 'cancelled' || !needsPayment(sel)).map((s) => (
                 <button key={s} onClick={() => act(() => api.patch(`/orders/${sel._id}/status`, { status: s }))} className={s === 'cancelled' ? 'btn-ghost !text-red-600' : 'btn-primary'}>{s === 'accepted' && sel.status.match(/pending|awaiting/) ? 'Accept' : ORDER_LABEL[s]}</button>
               ))}
               {sel.paymentStatus === 'unpaid_pod' && <button onClick={() => act(() => api.post(`/orders/${sel._id}/pod-collected`))} className="btn-dark">Mark cash collected</button>}

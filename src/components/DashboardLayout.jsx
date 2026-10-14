@@ -1,9 +1,11 @@
-import { useEffect, useState, createContext, useContext } from 'react';
+import { useCallback, useEffect, useMemo, useState, createContext, useContext } from 'react';
 import { useNavigate, Navigate, Outlet } from 'react-router-dom';
 import Shell from './Shell';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Logo, Spinner } from './ui';
+import NotifyBanner from './NotifyBanner';
+import InstallBanner from './InstallBanner';
 
 const DashCtx = createContext(null);
 export const useDash = () => useContext(DashCtx);
@@ -26,13 +28,14 @@ export default function DashboardLayout() {
   const { user, loading, logout } = useAuth(); const go = useNavigate();
   const [data, setData] = useState(null); const [note, setNote] = useState(''); const [sum, setSum] = useState({});
   useEffect(() => { api.get('/public/platform').then((p) => setNote(p.announcement?.enabled ? p.announcement.text : '')).catch(() => {}); }, []);
-  const load = () => api.get('/restaurant').then(setData).catch(() => {});
-  useEffect(() => { if (user) load(); }, [user]);
+  const load = useCallback(() => api.get('/restaurant').then(setData).catch(() => {}), []);
+  const refreshSummary = useCallback(() => api.get('/inbox/summary').then(setSum).catch(() => {}), []);
+  useEffect(() => { if (user) load(); }, [user, load]);
   useEffect(() => {
     if (user?.role !== 'owner') return undefined;
-    const l = () => api.get('/inbox/summary').then(setSum).catch(() => {});
-    l(); const t = setInterval(l, 20000); return () => clearInterval(t);
-  }, [user]);
+    refreshSummary(); const t = setInterval(refreshSummary, 20000); return () => clearInterval(t);
+  }, [user, refreshSummary]);
+  const ctx = useMemo(() => ({ data, reload: load, summary: sum, refreshSummary }), [data, load, sum, refreshSummary]);
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === 'admin') return <Navigate to="/admin" replace />;
@@ -43,7 +46,7 @@ export default function DashboardLayout() {
     : !data.isPro && sub?.status === 'expired' ? 'Your Pro plan has expired. Upgrade to restore Pro features.' : null);
 
   return (
-    <DashCtx.Provider value={{ data, reload: load, summary: sum, refreshSummary: () => api.get('/inbox/summary').then(setSum).catch(() => {}) }}>
+    <DashCtx.Provider value={ctx}>
       <Shell nav={nav} badges={{ orders: sum.newOrders, messages: sum.unreadMessages, reports: sum.activeReports }} brand={<Logo />}
         sidebarExtra={data && (
           <a href={data.publicUrl} target="_blank" rel="noreferrer" className="block rounded-3xl bg-night p-4 text-xs text-white">
@@ -54,6 +57,7 @@ export default function DashboardLayout() {
           <span className={`rounded-full px-3 py-1 text-xs font-bold ${data?.isPro ? 'bg-tomato-50 text-tomato-600' : 'bg-slate-100 text-slate-600'}`}>{data?.isPro ? 'PRO' : 'FREE'}</span>
           <button onClick={async () => { await logout(); go('/'); }} className="btn-ghost !py-1.5">Sign out</button></>}
         banners={<>
+          <NotifyBanner compact />
           {note && <div className="shrink-0 bg-sky-50 px-4 py-2 text-center text-sm font-medium text-sky-800 md:px-8">{note}</div>}
           {banner && <div className="shrink-0 bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800 md:px-8">{banner}</div>}</>}>
         {data ? <Outlet /> : <Spinner />}

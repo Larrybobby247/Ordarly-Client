@@ -4,6 +4,7 @@ import { useDash } from '../../components/DashboardLayout';
 import { Alert, Field, Badge } from '../../components/ui';
 import ImageField from '../../components/ImageField';
 import PlaceSearch from '../../components/PlaceSearch';
+import NotifyBanner from '../../components/NotifyBanner';
 import { Link } from 'react-router-dom';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -91,6 +92,8 @@ export default function Settings() {
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.acceptingOrders} onChange={(e) => setF({ ...f, acceptingOrders: e.target.checked })} /> Currently accepting orders</label>
         <button className="btn-primary">Save changes</button>
       </form>
+
+      <NotifyBanner />
 
       <div className="card space-y-3 p-6">
         <h3 className="font-bold">Page link</h3>

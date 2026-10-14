@@ -3,7 +3,6 @@ import { api, naira } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Alert, ProLock, Spinner } from '../../components/ui';
 import PlaceSearch from '../../components/PlaceSearch';
-import MapPreview from '../../components/MapPreview';
 
 function Toggle({ checked, onChange, label, desc, disabled }) {
   return (
@@ -28,7 +27,7 @@ export default function Fulfillment() {
   const { data, reload } = useDash();
   const [d, setD] = useState(null); const [info, setInfo] = useState(null); const [v, setV] = useState(null);
   const [loc, setLoc] = useState(null); const [placeSession, setPlaceSession] = useState(''); const [km, setKm] = useState(6);
-  const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [origin, setOrigin] = useState(null);
+  const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.get('/restaurant/fulfillment').then((r) => {
@@ -36,7 +35,6 @@ export default function Fulfillment() {
       setV(f.radius?.configured
         ? { baseFee: String(f.radius.baseFee), baseDistanceKm: String(f.radius.baseDistanceKm), perKmRate: String(f.radius.perKmRate), maxRadiusKm: String(f.radius.maxRadiusKm) }
         : { baseFee: '', baseDistanceKm: '', perKmRate: '', maxRadiusKm: '' });
-      setOrigin(f.location?.lat != null ? { lat: f.location.lat, lng: f.location.lng } : null);
       setLoc(f.location?.lat != null ? { address: f.location.address, saved: true } : null);
     });
   }, []);
@@ -57,7 +55,6 @@ export default function Fulfillment() {
       if (valid) {
         await api.put('/restaurant/delivery-radius', { ...num, placeId: loc?.placeId, sessionToken: placeSession || undefined });
         setLoc((l) => ({ address: l.address, saved: true })); setInfo((i) => ({ ...i, deliveryReady: true }));
-        const fresh = await api.get('/restaurant/fulfillment'); if (fresh.fulfillment.location?.lat != null) setOrigin({ lat: fresh.fulfillment.location.lat, lng: fresh.fulfillment.location.lng });
       } else on = false; // delivery cannot be on without a finished setup
       await api.put('/restaurant/fulfillment', { ...d, deliveryEnabled: on });
       setD({ ...d, deliveryEnabled: on }); await reload();
@@ -76,14 +73,13 @@ export default function Fulfillment() {
           <p className="text-sm text-ink-500">Your delivery fee is worked out automatically from how far the customer is from your restaurant. Fill in the four numbers below and customers will see their price at checkout. <b>Until this is complete, customers can't choose delivery.</b></p>
         </div>
 
-        {!info.mapsConfigured && <Alert kind="info">Address search is not switched on for this platform yet, so delivery can't be set up. (Admin: add <code>MAPBOX_ACCESS_TOKEN</code> to the server settings.)</Alert>}
+        {!info.mapsConfigured && <Alert kind="info">Address search is not switched on for this platform yet, so delivery can't be set up. (Admin: add <code>GOOGLE_MAPS_API_KEY</code> to the server settings.)</Alert>}
 
         <div>
           <label className="label" htmlFor="loc">1. Where is your restaurant?</label>
           <PlaceSearch id="loc" search={search} initial={loc?.address || ''} placeholder="Search your restaurant's street address…" disabled={!info.mapsConfigured}
             onPick={(s, token) => { if (s) { setLoc({ placeId: s.placeId, address: s.text || `${s.main}, ${s.secondary}` }); setPlaceSession(token); } else setLoc(null); }} />
           <p className="mt-1 text-xs text-ink-500">{loc?.saved ? '✓ Location saved. Search again to change it.' : loc ? '✓ Address picked. Save to keep it.' : 'Distances are measured from this point. Pick the address from the list.'}</p>
-          {origin && <div className="mt-3"><MapPreview origin={origin} radiusKm={valid ? num.maxRadiusKm : undefined} label="Your restaurant and delivery area" /><p className="mt-1 text-xs text-ink-500">The dashed circle is the furthest distance you deliver (your maximum radius).</p></div>}
         </div>
 
         <div>

@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api, upload, naira, ORDER_LABEL, PAY_LABEL } from '../../lib/api';
 import { Spinner, Badge, statusColor, payColor, Logo, Alert } from '../../components/ui';
 import { ReportModal } from '../../components/ReportForm';
+import InstallBanner from '../../components/InstallBanner';
 
 const FLOW = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -13,12 +14,23 @@ export default function Track() {
   const run = async (fn) => { setBusy(true); setMsg(null); try { await fn(); } catch (e) { setMsg({ kind: 'error', text: e.message }); } finally { setBusy(false); } };
   // Returning from Paystack: ask the SERVER to verify. The URL alone proves nothing.
   useEffect(() => {
-    if (new URLSearchParams(location.search).get('pay')) {
-      api.post(`/public/track/${token}/verify-payment`).then((r) => {
-        setMsg(r.status === 'success' ? { kind: 'ok', text: 'Payment confirmed.' } : r.status === 'failed' ? { kind: 'error', text: 'Payment did not go through. You can try again below.' } : { kind: 'info', text: 'We are still confirming your payment. This page will update on its own.' });
-        refetch();
-      });
-    }
+    if (!new URLSearchParams(location.search).get('pay')) return undefined;
+    let stop = false, tries = 0;
+    setMsg({ kind: 'info', text: 'Confirming your payment…' });
+    const check = async () => {
+      if (stop) return;
+      tries += 1;
+      try {
+        const r = await api.post(`/public/track/${token}/verify-payment`);
+        if (stop) return;
+        if (r.status === 'success') { setMsg({ kind: 'ok', text: 'Payment confirmed. Thank you!' }); refetch(); return; }
+        if (r.status === 'failed') { setMsg({ kind: 'error', text: 'Payment did not go through. You can try again below.' }); refetch(); return; }
+      } catch { /* try again */ }
+      if (tries < 10) setTimeout(check, 3000); // bank transfers can take a few seconds to settle
+      else { setMsg({ kind: 'info', text: 'We are still confirming your payment. This page will update on its own.' }); refetch(); }
+    };
+    check();
+    return () => { stop = true; };
   }, [token]);
   useEffect(() => {
     let stop = false;
@@ -32,6 +44,7 @@ export default function Track() {
   return (
     <div className="mx-auto max-w-lg p-4 pb-16">
       <div className="py-4"><Logo /></div>
+      <InstallBanner id={`track:${o.restaurantSlug || 'x'}`} name={o.restaurant} text="Add to your home screen to follow your order and reorder fast." className="mb-3" />
       <div className="card space-y-5 p-6">
         <div><div className="text-xs text-ink-500">{o.restaurant}</div><div className="font-display text-2xl font-bold">{o.reference}</div></div>
         <div className="flex flex-wrap gap-2"><Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge><Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge></div>

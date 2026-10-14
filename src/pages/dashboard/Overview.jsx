@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Spinner } from '../../components/ui';
+import InstallBanner from '../../components/InstallBanner';
 
 export const Stat = ({ label, value, tone = 'bg-brand-50 text-brand-600' }) => (
   <div className="card p-5"><div className={`mb-3 grid h-9 w-9 place-items-center rounded-xl text-sm font-bold ${tone}`}>●</div><div className="font-display text-3xl font-bold">{value}</div><div className="text-xs text-ink-500">{label}</div></div>
@@ -26,6 +27,7 @@ export default function Overview() {
   ].filter(([n]) => n > 0);
   return (
     <div className="space-y-6">
+      <InstallBanner id="dashboard" name="Ordarly" text="Install the app to open your orders in one tap." />
       <div className="card p-5"><div className="mb-2 font-bold">Tasks to review</div>
         {review.length === 0 ? <p className="text-sm text-ink-500">You're all caught up. New orders and messages will show up here.</p>
           : review.map(([n, one, tail, to]) => <Link key={one} to={to} className="flex items-center justify-between gap-3 border-t border-black/5 py-2.5 text-sm first:border-0"><span><span className="mr-2 inline-grid h-6 min-w-6 place-items-center rounded-full bg-tomato-500 px-1.5 text-xs font-bold text-white">{n}</span>{one}{n === 1 ? '' : 's'} {tail}</span><span className="text-brand-600">Open →</span></Link>)}

@@ -30,7 +30,7 @@ export default function PlaceSearch({ search, onPick, onText, placeholder = 'Sta
 
   return (
     <div className="relative">
-      <input id={id} className="input" autoComplete="off" disabled={disabled} placeholder={placeholder} value={q} role="combobox" aria-expanded={show && list.length > 0} aria-controls={`${id}-list`}
+      <input id={id} className="input" autoComplete="off" maxLength={400} disabled={disabled} placeholder={placeholder} value={q} role="combobox" aria-expanded={show && list.length > 0} aria-controls={`${id}-list`}
         onChange={(e) => { picked.current = false; setQ(e.target.value); setShow(true); onText?.(e.target.value); if (e.target.value.trim().length < 3) onPick(null); }}
         onFocus={() => setShow(true)} onBlur={() => setTimeout(() => setShow(false), 150)}
         onKeyDown={(e) => {

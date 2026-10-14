@@ -5,7 +5,8 @@ import { Spinner, Alert, Field } from '../../components/ui';
 import { ReportModal } from '../../components/ReportForm';
 import { Modal } from '../../components/adminKit';
 import PlaceSearch from '../../components/PlaceSearch';
-import MapPreview from '../../components/MapPreview';
+import InstallBanner from '../../components/InstallBanner';
+import { brandAsApp } from '../../lib/pwa';
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 const lineKey = (mealId, addonIds) => [mealId, ...[...addonIds].sort()].join('|');
@@ -21,6 +22,9 @@ export default function Restaurant({ domain }) {
 
   useEffect(() => { setD(null); setErr(''); api.get(domain ? `/public/by-domain/${domain}` : `/public/r/${slug}`).then(setD).catch((e) => setErr(e.message)); }, [domain, slug]);
   useEffect(() => { try { localStorage.setItem('cart2:' + key, JSON.stringify(cart)); } catch { /* storage unavailable */ } }, [cart, key]);
+
+  // Make this page installable as the restaurant's own app (its name + logo on the phone's home screen).
+  useEffect(() => { if (!d) return undefined; document.title = d.restaurant.name; return brandAsApp({ name: d.restaurant.name, logo: d.restaurant.logo, startUrl: location.origin + location.pathname }); }, [d]);
 
   const meals = d?.meals || [];
   const byId = useMemo(() => new Map(meals.map((m) => [m._id, m])), [meals]);
@@ -61,12 +65,26 @@ export default function Restaurant({ domain }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
       <div className="mx-auto mt-12 max-w-5xl px-4">
-        <div className="card flex flex-wrap items-center gap-4 p-5">
-          <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-2xl font-bold text-brand-700">{r.logo ? <img src={r.logo} alt={r.name} className="h-full w-full object-cover" /> : r.name[0]}</div>
-          <div className="min-w-0 flex-1"><h1 className="font-display text-2xl font-bold">{r.name}</h1><p className="text-sm text-ink-500">{r.description}</p>
-            <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-ink-500">{r.address && <span>📍 {r.address}</span>}{r.phone && <span>📞 {r.phone}</span>}</div></div>
-          <div className="flex items-center gap-2"><button className="btn-ghost !py-1.5 !text-xs" onClick={() => setContact(true)}>✉ Contact</button><span className={`rounded-full px-3 py-1 text-xs font-bold ${r.isOpen ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}>{r.isOpen ? 'Open' : 'Closed'}</span></div>
+        <div className="card space-y-4 p-4 sm:p-5">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-2xl font-bold text-brand-700 sm:h-20 sm:w-20">{r.logo ? <img src={r.logo} alt={r.name} className="h-full w-full object-cover" /> : r.name[0]}</div>
+            <div className="min-w-0 flex-1">
+              <h1 className="break-words font-display text-xl font-bold leading-tight sm:text-2xl">{r.name}</h1>
+              <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${r.isOpen ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}><span className={`h-1.5 w-1.5 rounded-full ${r.isOpen ? 'bg-brand-500' : 'bg-red-500'}`} />{r.isOpen ? 'Open now' : 'Closed'}</span>
+            </div>
+          </div>
+          {r.description && <p className="text-sm leading-relaxed text-ink-700">{r.description}</p>}
+          {(r.address || r.phone) && (
+            <ul className="divide-y divide-black/5 rounded-2xl bg-mint-50 text-sm">
+              {r.address && <li className="flex items-start gap-3 px-3 py-2.5"><span aria-hidden="true">📍</span><span className="min-w-0 flex-1 break-words">{r.address}</span></li>}
+              {r.phone && <li className="flex items-center gap-3 px-3 py-2.5"><span aria-hidden="true">📞</span><a href={`tel:${r.phone}`} className="min-w-0 flex-1 break-words font-medium">{r.phone}</a></li>}
+            </ul>)}
+          <div className="grid grid-cols-2 gap-2">
+            {r.phone ? <a href={`tel:${r.phone}`} className="btn-ghost justify-center !py-2.5 text-sm">📞 Call</a> : <span />}
+            <button className={`btn-ghost justify-center !py-2.5 text-sm ${r.phone ? '' : 'col-span-2'}`} onClick={() => setContact(true)}>✉ Contact us</button>
+          </div>
         </div>
+        <InstallBanner id={`r:${key}`} name={r.name} logo={r.logo} className="mt-3" text="Add to your home screen to reorder in one tap." />
         <div className="relative mt-4">
           <input type="search" aria-label="Search meals" className="input !rounded-full !pl-10" placeholder="Search meals, e.g. jollof, turkey…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <svg className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
@@ -207,7 +225,6 @@ function DeliveryPlace({ slug, rules, quote, setQuote }) {
       <label className="label" htmlFor="dest">Search your delivery address</label>
       <PlaceSearch id="dest" search={search} onPick={pick} placeholder="Type your street, estate or area…" />
       {busy && <p className="mt-1 text-xs text-ink-500">Checking the delivery price…</p>}
-      {quote && rules?.origin && quote.lat != null && <div className="mt-2"><MapPreview origin={rules.origin} dest={{ lat: quote.lat, lng: quote.lng }} height={200} label="Map showing the restaurant and your delivery address" /></div>}
       {quote && <p className="mt-1 text-xs font-semibold text-brand-700">✓ About {quote.distanceKm} km away · delivery {naira(quote.fee)}</p>}
       {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
       {!quote && !err && !busy && rules && <p className="mt-1 text-xs text-ink-500">Delivery starts at {naira(rules.baseFee)}, and we deliver up to {rules.maxRadiusKm} km away.</p>}
@@ -240,6 +257,7 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
       const body = { cart: cartPayload, ...f, deliveryPlaceId: f.fulfillment === 'delivery' ? quote?.placeId : undefined, idempotencyKey: idem };
       const res = await api.post(`/public/r/${slug}/checkout`, body);
       setDone({ type: 'pro', ...res }); setCart([]);
+      if (res.paymentUrl) { window.location.href = res.paymentUrl; return; } // straight to the Paystack page, no extra tap
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   const needArea = f.fulfillment === 'delivery' && !quote;
@@ -257,7 +275,7 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
         {done?.type === 'pro' && (
           <div className="space-y-4"><Alert kind="ok">Order <b>{done.reference}</b> placed. Total {naira(done.total)}.</Alert>
             {done.next === 'upload_proof' && <Alert kind="info">Transfer {naira(done.total)} using the details shown at checkout, then open your tracking page to upload your payment proof. Your order stays unpaid until {r.name} confirms the money arrived.</Alert>}
-            {done.next === 'pay_online' && <Alert kind="info">Open your tracking page and tap <b>Pay now</b> to complete payment securely with Paystack.</Alert>}
+            {done.next === 'pay_online' && (done.paymentUrl ? <Alert kind="info">Taking you to Paystack to pay… <a className="font-semibold underline" href={done.paymentUrl}>Tap here if nothing happens</a>.</Alert> : <Alert kind="info">Open your tracking page and tap <b>Pay now</b> to complete payment securely with Paystack.</Alert>)}
             {done.paymentMethod === 'pod' && <Alert kind="info">Pay the rider/restaurant when your order arrives.</Alert>}
             <Link to={`/track/${done.trackingToken}`} className="btn-primary w-full">Track your order</Link>
             <p className="text-center text-xs text-ink-500">We also emailed you this tracking link. Save it, as anyone with the link can view this order.</p></div>
