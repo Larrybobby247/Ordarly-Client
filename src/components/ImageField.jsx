@@ -1,3 +1,4 @@
+import { optimizeImage } from '../lib/img';
 import { useState } from 'react';
 import { upload } from '../lib/api';
 
@@ -14,7 +15,7 @@ export default function ImageField({ value, onChange, label = 'Image' }) {
     <div>
       <span className="label">{label}</span>
       <div className="flex items-center gap-3">
-        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-mint-100">{value && <img src={value} alt="" className="h-full w-full object-cover" />}</div>
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-mint-100">{value && <img src={optimizeImage(value, 56)} alt="" width="56" height="56" decoding="async" className="h-full w-full object-cover" />}</div>
         <div className="min-w-0 flex-1 space-y-1.5">
           <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pick} disabled={busy} className="block w-full text-xs" />
           <input className="input !py-1.5 !text-xs" type="url" placeholder="…or paste an image URL" value={value || ''} onChange={(e) => onChange(e.target.value)} />

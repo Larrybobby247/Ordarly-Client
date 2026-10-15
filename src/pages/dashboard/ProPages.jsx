@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import QRCode from 'qrcode';
+// PERF (changed): the QR library is no longer bundled with every dashboard page. It is downloaded only when the QR page is opened.
+const loadQR = () => import('qrcode').then((m) => m.default || m);
 import { api, naira } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Alert, Badge, ProLock, Spinner, Field } from '../../components/ui';
@@ -82,9 +83,9 @@ export function Payments() {
 /* ---------------- QR ---------------- */
 export function QR() {
   const { data } = useDash(); const ref = useRef(); const [url] = useState(data.publicUrl);
-  useEffect(() => { if (data.isPro && ref.current) QRCode.toCanvas(ref.current, url, { width: 260, margin: 2, color: { dark: '#12182b' } }); }, [data.isPro, url]);
+  useEffect(() => { if (data.isPro && ref.current) loadQR().then((QRCode) => ref.current && QRCode.toCanvas(ref.current, url, { width: 260, margin: 2, color: { dark: '#12182b' } })); }, [data.isPro, url]);
   if (!data.isPro) return <ProLock title="QR code download" />;
-  const download = async () => { const png = await QRCode.toDataURL(url, { width: 2000, margin: 4, errorCorrectionLevel: 'H', color: { dark: '#12182b' } }); const a = document.createElement('a'); a.href = png; a.download = `${data.restaurant.slug}-qr.png`; a.click(); };
+  const download = async () => { const QRCode = await loadQR(); const png = await QRCode.toDataURL(url, { width: 2000, margin: 4, errorCorrectionLevel: 'H', color: { dark: '#12182b' } }); const a = document.createElement('a'); a.href = png; a.download = `${data.restaurant.slug}-qr.png`; a.click(); };
   return (
     <div className="mx-auto max-w-md"><div className="card p-8 text-center">
       <canvas ref={ref} className="mx-auto rounded-2xl" /><div className="mt-3 break-all text-sm text-ink-500">{url}</div>

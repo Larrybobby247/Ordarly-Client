@@ -8,7 +8,7 @@ self.addEventListener('push', (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch { d = { body: event.data && event.data.text() }; }
   event.waitUntil(self.registration.showNotification(d.title || 'Ordarly', {
-    body: d.body || '', icon: '/icon-192.png', badge: '/icon-192.png', tag: d.tag || 'ordarly', renotify: true,
+    body: d.body || '', icon: '/icon.png', badge: '/icon.png', tag: d.tag || 'ordarly', renotify: true,
     data: { url: d.url || '/dashboard' }, vibrate: [120, 60, 120],
   }));
 });

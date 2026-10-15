@@ -1,3 +1,4 @@
+import { optimizeImage } from '../../lib/img';
 import { useEffect, useState } from 'react';
 import { api, naira } from '../../lib/api';
 import { Alert, Spinner, Field } from '../../components/ui';
@@ -91,7 +92,8 @@ export default function Menu() {
           {shown.map((m) => (
             <div key={m._id} className={`card overflow-hidden ${!m.available && 'opacity-60'}`}>
               <div className="relative h-36 bg-mint-100">
-                {m.image && <img src={m.image} alt={m.name} className="h-full w-full object-cover" loading="lazy" />}
+                {/* PERF: Cloudinary copy sized for the card (about 640px WebP/AVIF) instead of the full photo */}
+                {m.image && <img src={optimizeImage(m.image, 320)} alt={m.name} decoding="async" className="h-full w-full object-cover" loading="lazy" />}
                 {m.popular && <span className="absolute left-3 top-3 rounded-full bg-tomato-500 px-2.5 py-1 text-[11px] font-bold text-white">★ Popular</span>}
               </div>
               <div className="p-4">

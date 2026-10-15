@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
-import { Alert, Spinner } from './ui';
+import { ListSkeleton, RetryError } from './ui';
 
 export const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 export const fmtDateTime = (d) => (d ? new Date(d).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—');
@@ -16,10 +16,17 @@ export function useDebounced(value, ms = 350) {
 export function useList(path, filters = {}, page = 1) {
   const [state, setState] = useState({ loading: true, error: '', data: null });
   const qs = new URLSearchParams({ page, ...Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== '' && v != null)) }).toString();
+  // PERF/correctness (changed): each new search/filter/page cancels the previous request, and a late reply from an older request
+  // can never overwrite newer results (this used to be possible when typing quickly in a search box).
+  const ctl = useRef(null);
   const load = useCallback(() => {
+    ctl.current?.abort(); const c = new AbortController(); ctl.current = c;
     setState((s) => ({ ...s, loading: true, error: '' }));
-    return api.get(`${path}?${qs}`).then((data) => setState({ loading: false, error: '', data })).catch((e) => setState({ loading: false, error: e.message, data: null }));
+    return api.get(`${path}?${qs}`, { signal: c.signal })
+      .then((data) => { if (!c.signal.aborted) setState({ loading: false, error: '', data }); })
+      .catch((e) => { if (!c.signal.aborted && !e.cancelled) setState({ loading: false, error: e.message, data: null }); });
   }, [path, qs]);
+  useEffect(() => () => ctl.current?.abort(), []); // leaving the page cancels any request still running
   useEffect(() => { load(); }, [load]);
   return { ...state, reload: load };
 }
@@ -81,8 +88,9 @@ export function Filters({ fields, values, onChange }) {
 // Table wrapper with loading / error / empty states. columns: [{head, cell: (row) => node, className}]
 export function DataTable({ state, columns, onRow, empty = 'Nothing found.' }) {
   const { loading, error, data } = state;
-  if (error) return <Alert>{error}</Alert>;
-  if (!data) return loading ? <Spinner /> : null;
+  // UX (changed): skeleton rows while loading and a Try again button on failure (was a spinner / plain error text).
+  if (error) return <RetryError message={error} onRetry={state.reload} />;
+  if (!data) return loading ? <ListSkeleton /> : null;
   return (
     <div className={`card overflow-x-auto ${loading ? 'opacity-60' : ''}`}>
       <table className="w-full min-w-[640px] text-left text-sm">

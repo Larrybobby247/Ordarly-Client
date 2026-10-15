@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, naira, ORDER_LABEL, PAY_LABEL, NEXT_STATUS } from '../../lib/api';
 import ProofReview from './ProofReview';
-import { Badge, statusColor, payColor, Spinner, Alert } from '../../components/ui';
+import { Badge, statusColor, payColor, ListSkeleton, RetryError, Alert } from '../../components/ui';
 import { useDash } from '../../components/DashboardLayout';
+import { useVisibleInterval } from '../../lib/hooks';
 
 const PAID = ['paid', 'paid_manual'];
 const needsPayment = (o) => o.channel === 'checkout' && ['paystack', 'bank_transfer'].includes(o.paymentMethod) && !PAID.includes(o.paymentStatus);
@@ -23,13 +24,17 @@ export default function Orders() {
   const { refreshSummary } = useDash(); const refreshRef = useRef(refreshSummary); refreshRef.current = refreshSummary; // a ref keeps load() stable, so the page never re-requests itself in a loop
   const [today, setToday] = useState({ byStatus: {}, total: 0, waiting: 0 });
   const loadToday = useCallback(() => api.get('/orders/summary').then(setToday).catch(() => {}), []);
+  const seq = useRef(0); const [loadErr, setLoadErr] = useState('');
   const load = useCallback(() => {
     const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
-    api.get('/orders?' + qs).then(setRes);
+    // PERF/correctness (changed): only the NEWEST request may update the list, so a slow older search can't overwrite newer results.
+    const my = ++seq.current;
+    api.get('/orders?' + qs).then((r) => { if (my === seq.current) { setRes(r); setLoadErr(''); } }).catch((e) => { if (my === seq.current) setLoadErr(e.message); });
     loadToday(); refreshRef.current?.();
   }, [f, loadToday]);
   useEffect(() => { const t = setTimeout(load, 250); return () => clearTimeout(t); }, [load]);
-  useEffect(() => { const t = setInterval(load, 20000); return () => clearInterval(t); }, [load]); // pick up new orders without a refresh
+  // PERF (changed): auto-refresh every 20s but only while the tab is visible (was: always, even in background tabs).
+  useVisibleInterval(load, 20000);
 
   const act = async (fn) => { setErr(''); try { const o = await fn(); setSel(o); load(); } catch (e) { setErr(e.message); } };
 
@@ -51,7 +56,7 @@ export default function Orders() {
         <select className="input" value={f.fulfillment} onChange={(e) => setF({ ...f, fulfillment: e.target.value })}><option value="">All fulfilment</option>{['whatsapp_pickup', 'delivery', 'pickup', 'dine_in'].map((k) => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}</select>
         <select className="input" value={f.paymentMethod} onChange={(e) => setF({ ...f, paymentMethod: e.target.value })}><option value="">All payment</option>{['none', 'paystack', 'bank_transfer', 'pod'].map((k) => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}</select>
       </div>
-      {!res ? <Spinner /> : res.orders.length === 0 ? <div className="card p-10 text-center text-sm text-ink-500">No orders yet. Share your page link to get started.</div> : (
+      {!res ? (loadErr ? <RetryError message={loadErr} onRetry={load} /> : <ListSkeleton />) : res.orders.length === 0 ? <div className="card p-10 text-center text-sm text-ink-500">No orders yet. Share your page link to get started.</div> : (
         <div className="card divide-y divide-black/5">
           {res.orders.map((o) => (
             <button key={o._id} onClick={() => setSel(o)} className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left hover:bg-mint-50">

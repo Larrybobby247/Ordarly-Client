@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { PageSkeleton } from './ui';
 
 // App frame shared by the restaurant and admin dashboards.
 // The frame is exactly one screen tall: sidebar and top bar never move, only the page content scrolls.
@@ -49,7 +50,7 @@ export default function Shell({ nav, badges = {}, brand, sidebarExtra, topLeft, 
           <div className="flex shrink-0 items-center gap-3">{topRight}</div>
         </header>
         {banners}
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">{children || <Outlet />}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8">{/* PERF (new): sidebar and topbar stay visible while the next page's file loads */}<Suspense fallback={<PageSkeleton />}>{children || <Outlet />}</Suspense></main>
       </div>
     </div>
   );

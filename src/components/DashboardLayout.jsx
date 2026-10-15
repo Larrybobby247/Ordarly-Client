@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { Logo, Spinner } from './ui';
 import NotifyBanner from './NotifyBanner';
+import { useVisibleInterval } from '../lib/hooks';
 import InstallBanner from './InstallBanner';
 
 const DashCtx = createContext(null);
@@ -27,14 +28,16 @@ const nav = [
 export default function DashboardLayout() {
   const { user, loading, logout } = useAuth(); const go = useNavigate();
   const [data, setData] = useState(null); const [note, setNote] = useState(''); const [sum, setSum] = useState({});
-  useEffect(() => { api.get('/public/platform').then((p) => setNote(p.announcement?.enabled ? p.announcement.text : '')).catch(() => {}); }, []);
+  useEffect(() => { api.get('/public/platform', { ttl: 5 * 60 * 1000 }).then((p) => setNote(p.announcement?.enabled ? p.announcement.text : '')).catch(() => {}); }, []);
   const load = useCallback(() => api.get('/restaurant').then(setData).catch(() => {}), []);
   const refreshSummary = useCallback(() => api.get('/inbox/summary').then(setSum).catch(() => {}), []);
   useEffect(() => { if (user) load(); }, [user, load]);
   useEffect(() => {
     if (user?.role !== 'owner') return undefined;
-    refreshSummary(); const t = setInterval(refreshSummary, 20000); return () => clearInterval(t);
+    refreshSummary();
   }, [user, refreshSummary]);
+  // PERF (changed): counters refresh every 20s only while the tab is visible (previously also in background tabs).
+  useVisibleInterval(() => { if (user?.role === 'owner') refreshSummary(); }, 20000);
   const ctx = useMemo(() => ({ data, reload: load, summary: sum, refreshSummary }), [data, load, sum, refreshSummary]);
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;

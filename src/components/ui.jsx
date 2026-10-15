@@ -22,6 +22,25 @@ export function Logo({ light = false }) {
 
 export const Spinner = () => <div className="mx-auto my-10 h-6 w-6 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />;
 
+// PERF/UX (new): skeleton placeholders. They reserve the same space the real content will take, so the page doesn't jump
+// (no layout shift) and feels faster than a lone spinner.
+export const Skeleton = ({ className = 'h-4 w-full' }) => <div className={`animate-pulse rounded-xl bg-black/5 ${className}`} aria-hidden="true" />;
+export const CardSkeleton = ({ lines = 2 }) => (
+  <div className="card space-y-3 p-5" aria-hidden="true"><Skeleton className="h-8 w-8" /><Skeleton className="h-7 w-20" />{Array.from({ length: lines - 1 }).map((_, i) => <Skeleton key={i} className="h-3 w-24" />)}</div>
+);
+export const ListSkeleton = ({ rows = 5 }) => (
+  <div className="card divide-y divide-black/5" role="status" aria-label="Loading">
+    {Array.from({ length: rows }).map((_, i) => <div key={i} className="flex items-center justify-between gap-3 p-4"><div className="space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-56" /></div><Skeleton className="h-6 w-20" /></div>)}
+  </div>
+);
+export const PageSkeleton = () => (
+  <div className="space-y-4" role="status" aria-label="Loading page"><Skeleton className="h-8 w-48" /><div className="grid grid-cols-2 gap-4 lg:grid-cols-4"><CardSkeleton /><CardSkeleton /><CardSkeleton /><CardSkeleton /></div><ListSkeleton rows={4} /></div>
+);
+// A failed section with a retry button, so one failing request never leaves a blank or stuck page.
+export const RetryError = ({ message, onRetry }) => (
+  <div className="card flex flex-wrap items-center justify-between gap-3 p-4 text-sm"><span className="text-red-700">{message || 'Something went wrong.'}</span>{onRetry && <button className="btn-ghost !py-1.5" onClick={onRetry}>Try again</button>}</div>
+);
+
 export function Field({ label, children, hint }) {
   return (
     <label className="block">

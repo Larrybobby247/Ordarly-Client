@@ -4,6 +4,7 @@ import { api, upload, naira, ORDER_LABEL, PAY_LABEL } from '../../lib/api';
 import { Spinner, Badge, statusColor, payColor, Logo, Alert } from '../../components/ui';
 import { ReportModal } from '../../components/ReportForm';
 import InstallBanner from '../../components/InstallBanner';
+import { useVisibleInterval } from '../../lib/hooks';
 
 const FLOW = ['pending', 'accepted', 'preparing', 'ready', 'completed'];
 
@@ -34,10 +35,13 @@ export default function Track() {
   }, [token]);
   useEffect(() => {
     let stop = false;
-    const load = () => api.get(`/public/track/${token}`).then((d) => !stop && setO(d)).catch((e) => setErr(e.message));
-    load(); const t = setInterval(load, 15000); // polling for status updates
-    return () => { stop = true; clearInterval(t); };
+    api.get(`/public/track/${token}`).then((d) => !stop && setO(d)).catch((e) => !stop && setErr(e.message));
+    return () => { stop = true; };
   }, [token]);
+  // PERF (changed): status polling (every 15s) now pauses in hidden tabs and stops entirely once the order is finished,
+  // instead of polling forever. Errors during a refresh are ignored so a brief network drop doesn't replace the page with "not found".
+  const finished = o && ['completed', 'cancelled'].includes(o.status) && !['awaiting_payment', 'pending', 'awaiting_verification'].includes(o.paymentStatus);
+  useVisibleInterval(() => { if (!finished) api.get(`/public/track/${token}`).then(setO).catch(() => {}); }, 15000);
   if (err) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="font-display text-3xl font-bold">Order not found</h1><p className="mt-2 text-ink-500">Check that you used the full link from your confirmation.</p></div></div>;
   if (!o) return <Spinner />;
   const idx = FLOW.indexOf(o.status);

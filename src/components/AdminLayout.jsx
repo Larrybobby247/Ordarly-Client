@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useVisibleInterval } from '../lib/hooks';
 import { Navigate, useNavigate } from 'react-router-dom';
 import Shell from './Shell';
 import { api } from '../lib/api';
@@ -23,9 +24,10 @@ export default function AdminLayout() {
   const [badge, setBadge] = useState(0);
   useEffect(() => {
     if (user?.role !== 'admin') return undefined;
-    const load = () => api.get('/admin/stats').then((s) => setBadge(s.openComplaints || 0)).catch(() => {});
-    load(); const t = setInterval(load, 60000); return () => clearInterval(t);
+    api.get('/admin/stats').then((s) => setBadge(s.openComplaints || 0)).catch(() => {});
   }, [user]);
+  // PERF (changed): the badge refresh now pauses while the tab is hidden (it used to keep polling in the background).
+  useVisibleInterval(() => { if (user?.role === 'admin') api.get('/admin/stats').then((s) => setBadge(s.openComplaints || 0)).catch(() => {}); }, 60000);
   if (loading) return <Spinner />;
   if (!user || user.role !== 'admin') return <Navigate to="/login" replace />;
 

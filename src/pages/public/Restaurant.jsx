@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api, naira } from '../../lib/api';
-import { Spinner, Alert, Field } from '../../components/ui';
+import { Skeleton, Alert, Field } from '../../components/ui';
+import { optimizeImage } from '../../lib/img';
 import { ReportModal } from '../../components/ReportForm';
 import { Modal } from '../../components/adminKit';
 import PlaceSearch from '../../components/PlaceSearch';
@@ -10,6 +11,18 @@ import { brandAsApp } from '../../lib/pwa';
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 const lineKey = (mealId, addonIds) => [mealId, ...[...addonIds].sort()].join('|');
+
+function RestaurantSkeleton() {
+  return (
+    <div className="min-h-screen bg-mint-50" role="status" aria-label="Loading menu">
+      <div className="h-44 animate-pulse bg-black/10 md:h-60" />
+      <div className="mx-auto -mt-12 max-w-5xl space-y-4 px-4">
+        <div className="card space-y-3 p-5"><div className="flex gap-3"><Skeleton className="h-16 w-16" /><div className="flex-1 space-y-2"><Skeleton className="h-6 w-2/3" /><Skeleton className="h-5 w-24" /></div></div><Skeleton className="h-4 w-full" /><Skeleton className="h-10 w-full" /></div>
+        {[0, 1, 2, 3].map((i) => <div key={i} className="card flex gap-3 p-3"><Skeleton className="h-24 w-24 shrink-0" /><div className="flex-1 space-y-2"><Skeleton className="h-5 w-1/2" /><Skeleton className="h-3 w-full" /><Skeleton className="h-4 w-20" /></div></div>)}
+      </div>
+    </div>
+  );
+}
 
 export default function Restaurant({ domain }) {
   const { slug } = useParams();
@@ -20,7 +33,7 @@ export default function Restaurant({ domain }) {
   const [cat, setCat] = useState(''); const [open, setOpen] = useState(false); const [step, setStep] = useState('cart');
   const [sheet, setSheet] = useState(null); const [report, setReport] = useState(false); const [contact, setContact] = useState(false); const [search, setSearch] = useState('');
 
-  useEffect(() => { setD(null); setErr(''); api.get(domain ? `/public/by-domain/${domain}` : `/public/r/${slug}`).then(setD).catch((e) => setErr(e.message)); }, [domain, slug]);
+  useEffect(() => { setD(null); setErr(''); api.get(domain ? `/public/by-domain/${encodeURIComponent(domain)}` : `/public/r/${slug}`, { ttl: 30000 }).then(setD).catch((e) => setErr(e.message)); }, [domain, slug]);
   useEffect(() => { try { localStorage.setItem('cart2:' + key, JSON.stringify(cart)); } catch { /* storage unavailable */ } }, [cart, key]);
 
   // Make this page installable as the restaurant's own app (its name + logo on the phone's home screen).
@@ -51,7 +64,8 @@ export default function Restaurant({ domain }) {
   const qtyOfMeal = (id) => cart.filter((l) => l.mealId === id).reduce((s, l) => s + l.quantity, 0);
 
   if (err) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="font-display text-3xl font-bold">Restaurant not found</h1><p className="mt-2 text-ink-500">{err}</p>{!domain && <a href="/" className="btn-primary mt-5">Go to Ordarly</a>}</div></div>;
-  if (!d) return <Spinner />;
+  // PERF/UX (changed): a page-shaped skeleton instead of a lone spinner, so the layout is already there while the menu loads.
+  if (!d) return <RestaurantSkeleton />;
   const r = d.restaurant; const accent = r.accent || '#16a34a'; const isPro = r.plan === 'pro' && d.checkout;
   const needle = search.trim().toLowerCase();
   const shown = meals.filter((m) => (!cat || m.category === cat) && (!needle || [m.name, m.description, ...(m.tags || []), ...(m.addons || []).map((a) => a.name)].some((t) => String(t || '').toLowerCase().includes(needle))));
@@ -61,13 +75,14 @@ export default function Restaurant({ domain }) {
   return (
     <div className="min-h-screen bg-mint-50 pb-28" style={{ '--accent': accent }}>
       <div className="relative h-44 bg-gradient-to-br from-brand-500 to-brand-700 md:h-60">
-        {r.cover && <img src={r.cover} alt="" className="h-full w-full object-cover" />}
+        {/* PERF: the cover is the largest visible image, so it loads first (not lazy, high priority) and is resized by Cloudinary to ~1280px WebP/AVIF */}
+        {r.cover && <img src={optimizeImage(r.cover, 640, 1600)} alt="" width="1280" height="480" fetchpriority="high" decoding="async" className="h-full w-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
       <div className="mx-auto mt-12 max-w-5xl px-4">
         <div className="card space-y-4 p-4 sm:p-5">
           <div className="flex items-start gap-3 sm:gap-4">
-            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-2xl font-bold text-brand-700 sm:h-20 sm:w-20">{r.logo ? <img src={r.logo} alt={r.name} className="h-full w-full object-cover" /> : r.name[0]}</div>
+            <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-brand-100 text-2xl font-bold text-brand-700 sm:h-20 sm:w-20">{r.logo ? <img src={optimizeImage(r.logo, 80)} alt={r.name} width="80" height="80" decoding="async" className="h-full w-full object-cover" /> : r.name[0]}</div>
             <div className="min-w-0 flex-1">
               <h1 className="break-words font-display text-xl font-bold leading-tight sm:text-2xl">{r.name}</h1>
               <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${r.isOpen ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}><span className={`h-1.5 w-1.5 rounded-full ${r.isOpen ? 'bg-brand-500' : 'bg-red-500'}`} />{r.isOpen ? 'Open now' : 'Closed'}</span>
@@ -103,7 +118,7 @@ export default function Restaurant({ domain }) {
             return (
               <div key={m._id} role="button" tabIndex={0} aria-label={`View ${m.name}`} onClick={() => onAdd(m)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onAdd(m))}
                 className={`card flex cursor-pointer gap-3 overflow-hidden p-3 transition hover:border-brand-500/40 ${!m.available && 'opacity-60'}`}>
-                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-mint-100">{m.image && <img src={m.image} alt="" loading="lazy" className="h-full w-full object-cover" />}</div>
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-mint-100">{/* PERF: 96px thumbnail from Cloudinary instead of the full-size photo; lazy-loaded below the fold */}{m.image && <img src={optimizeImage(m.image, 96)} alt="" width="96" height="96" loading="lazy" decoding="async" className="h-full w-full object-cover" />}</div>
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex flex-wrap items-center gap-1.5"><b className="leading-tight">{m.name}</b>{m.popular && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">★ Popular</span>}</div>
                   <p className="line-clamp-2 text-xs text-ink-500">{m.description}</p>
@@ -152,7 +167,7 @@ function ItemSheet({ m, canOrder, onClose, onAdd }) {
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-6" onClick={onClose}>
       <div role="dialog" aria-label={m.name} className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-t-4xl bg-white md:rounded-4xl" onClick={(e) => e.stopPropagation()}>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="relative h-52 bg-mint-100">{m.image && <img src={m.image} alt={m.name} className="h-full w-full object-cover" />}
+          <div className="relative h-52 bg-mint-100">{m.image && <img src={optimizeImage(m.image, 512)} alt={m.name} decoding="async" className="h-full w-full object-cover" />}
             <button onClick={onClose} className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-xl shadow" aria-label="Close">×</button></div>
           <div className="space-y-4 p-6">
             <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-display text-2xl font-bold">{m.name}</h2>{m.popular && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">★ Popular</span>}</div>

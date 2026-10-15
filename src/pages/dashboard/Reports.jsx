@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useVisibleInterval } from '../../lib/hooks';
 import { api } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Alert, Badge, Field, Spinner } from '../../components/ui';
@@ -26,7 +27,8 @@ export default function Reports() {
   const [rows, setRows] = useState(null); const [err, setErr] = useState(''); const [sel, setSel] = useState(null);
   const [f, setF] = useState({ kind: 'complaint', subject: '', message: '' }); const [busy, setBusy] = useState(false); const [msg, setMsg] = useState(null);
   const load = () => api.get('/inbox/reports').then((r) => setRows(r.rows)).catch((e) => setErr(e.message));
-  useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
+  useEffect(() => { load(); }, []);
+  useVisibleInterval(load, 60000); // PERF (changed): pauses in hidden tabs
 
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setMsg(null);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Suspense } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { Logo } from './ui';
+import { Logo, PageSkeleton } from './ui';
 import { PHONE, WHATSAPP_URL, usePlatform } from '../lib/platform';
 
 const links = [['/how-it-works', 'How it works'], ['/pricing', 'Pricing'], ['/about', 'About'], ['/faq', 'FAQ'], ['/contact', 'Contact']];
@@ -32,7 +33,8 @@ export default function MarketingLayout() {
           </div>
         )}
       </header>
-      <Outlet />
+      {/* PERF (new): header/footer stay while the page's file loads */}
+      <Suspense fallback={<div className="mx-auto max-w-5xl p-6"><PageSkeleton /></div>}><Outlet /></Suspense>
       <footer className="mt-24 bg-night text-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 md:grid-cols-4">
           <div className="md:col-span-2">
