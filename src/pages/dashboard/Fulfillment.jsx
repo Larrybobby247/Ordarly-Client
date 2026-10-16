@@ -73,7 +73,7 @@ export default function Fulfillment() {
           <p className="text-sm text-ink-500">Your delivery fee is worked out automatically from how far the customer is from your restaurant. Fill in the four numbers below and customers will see their price at checkout. <b>Until this is complete, customers can't choose delivery.</b></p>
         </div>
 
-        {!info.mapsConfigured && <Alert kind="info">Address search is not switched on for this platform yet, so delivery can't be set up. (Admin: add <code>GOOGLE_MAPS_API_KEY</code> to the server settings.)</Alert>}
+        {!info.mapsConfigured && <Alert kind="info">Address search is not switched on for this platform yet, so delivery can't be set up. (Admin: add <code>LOCATIONIQ_API_KEY</code> to the server settings.)</Alert>}
 
         <div>
           <label className="label" htmlFor="loc">1. Where is your restaurant?</label>
