@@ -123,8 +123,31 @@ export function Subscription() {
   const load = () => api.get('/subscription').then(setS);
   useEffect(() => {
     load();
+    // Returning from Paystack (?ref=SUB-...): ask OUR server to verify with Paystack. Changed: it now retries for ~30s (bank transfers can take a
+    // few seconds to settle) and shows the real error if the request fails (it used to ignore failures, which left the page "pending" with no clue why).
     const ref = new URLSearchParams(location.search).get('ref');
-    if (ref) api.post('/subscription/verify', { reference: ref }).then((r) => { setMsg(r.status === 'success' ? { kind: 'ok', text: 'Payment verified. Pro is active.' } : r.status === 'failed' ? { kind: 'error', text: 'Payment failed.' } : { kind: 'info', text: 'We are still confirming your payment. This page will update shortly. Nothing is lost if you close it.' }); reload(); load(); });
+    if (ref) {
+      let stop = false, tries = 0;
+      setMsg({ kind: 'info', text: 'Confirming your payment…' });
+      const check = async () => {
+        if (stop) return; tries += 1;
+        try {
+          const r = await api.post('/subscription/verify', { reference: ref });
+          if (stop) return;
+          if (r.status === 'success') { setMsg({ kind: 'ok', text: 'Payment verified. Pro is active.' }); history.replaceState(null, '', location.pathname); reload(); load(); return; }
+          if (r.status === 'failed') { setMsg({ kind: 'error', text: 'Payment failed or was cancelled. You were not charged for this attempt.' }); load(); return; }
+          if (r.message && tries >= 3) setMsg({ kind: 'info', text: r.message });
+        } catch (e) {
+          if (e.status === 401) { setMsg({ kind: 'error', text: 'Please sign in again, then open Subscription to finish confirming your payment.' }); return; }
+          if (tries >= 3) setMsg({ kind: 'error', text: `We could not confirm your payment yet: ${e.message}` });
+        }
+        if (tries < 10) setTimeout(check, 3000);
+        else { setMsg({ kind: 'info', text: 'Still confirming. Use "Check status" next to the payment below, or come back in a minute. Nothing is lost.' }); load(); }
+      };
+      check();
+      return () => { stop = true; };
+    }
+    return undefined;
   }, []);
   if (!s) return <Spinner />;
   const sub = s.subscription;
@@ -149,7 +172,7 @@ export function Subscription() {
       <div className="card p-6"><h3 className="mb-2 font-bold">Subscription payments</h3>
         <p className="mb-3 text-xs text-ink-500">These are your Ordarly subscription payments only, separate from customer food orders.</p>
         {s.payments.length === 0 ? <p className="text-sm text-ink-500">No payments yet.</p> : s.payments.map((p) => (
-          <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge></span></div>))}
+          <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge>{p.status === 'pending' && <button className="text-xs font-semibold text-brand-600 underline" disabled={busy} onClick={() => run(async () => { const r = await api.post('/subscription/verify', { reference: p.providerReference }); setMsg(r.status === 'success' ? { kind: 'ok', text: 'Payment verified. Pro is active.' } : { kind: 'info', text: r.message || (r.status === 'failed' ? 'Paystack says this payment did not go through.' : 'Paystack has not confirmed this payment yet.') }); await reload(); await load(); })}>Check status</button>}</span></div>))}
       </div>
     </div>
   );
