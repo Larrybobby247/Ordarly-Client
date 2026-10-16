@@ -172,7 +172,43 @@ export function Subscription() {
       <div className="card p-6"><h3 className="mb-2 font-bold">Subscription payments</h3>
         <p className="mb-3 text-xs text-ink-500">These are your Ordarly subscription payments only, separate from customer food orders.</p>
         {s.payments.length === 0 ? <p className="text-sm text-ink-500">No payments yet.</p> : s.payments.map((p) => (
-          <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge>{p.status === 'pending' && <button className="text-xs font-semibold text-brand-600 underline" disabled={busy} onClick={() => run(async () => { const r = await api.post('/subscription/verify', { reference: p.providerReference }); setMsg(r.status === 'success' ? { kind: 'ok', text: 'Payment verified. Pro is active.' } : { kind: 'info', text: r.message || (r.status === 'failed' ? 'Paystack says this payment did not go through.' : 'Paystack has not confirmed this payment yet.') }); await reload(); await load(); })}>Check status</button>}</span></div>))}
+          <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge>
+            {p.status === 'pending' && (
+  <button
+    className="text-xs font-semibold text-brand-600 underline"
+    disabled={busy}
+    onClick={() =>
+      run(async () => {
+        const r = await api.post('/subscription/verify', {
+          reference: p.providerReference,
+        });
+
+        // TEMPORARY DIAGNOSTIC: inspect the backend response
+        console.log('Subscription verification response:', r);
+        alert(JSON.stringify(r, null, 2));
+
+        setMsg(
+          r.status === 'success'
+            ? { kind: 'ok', text: 'Payment verified. Pro is active.' }
+            : {
+                kind: 'info',
+                text:
+                  r.message ||
+                  (r.status === 'failed'
+                    ? 'Paystack says this payment did not go through.'
+                    : 'Paystack has not confirmed this payment yet.'),
+              }
+        );
+
+        await reload();
+        await load();
+      })
+    }
+  >
+    Check status
+  </button>
+)}
+          </span></div>))}
       </div>
     </div>
   );
