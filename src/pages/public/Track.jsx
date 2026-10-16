@@ -25,6 +25,15 @@ export default function Track() {
         const r = await api.post(`/public/track/${token}/verify-payment`);
         if (stop) return;
         if (r.status === 'success') { setMsg({ kind: 'ok', text: 'Payment confirmed. Thank you!' }); refetch(); return; }
+        if (r.status === 'attention') {
+  setMsg({
+    kind: 'error',
+    text: 'Paystack confirms that the payment was received, but it needs to be matched to this order manually. Do not pay again—contact the restaurant or support with your order reference.',
+  });
+  refetch();
+  return;
+}
+
         if (r.status === 'failed') { setMsg({ kind: 'error', text: 'Payment did not go through. You can try again below.' }); refetch(); return; }
       } catch { /* try again */ }
       if (tries < 10) setTimeout(check, 3000); // bank transfers can take a few seconds to settle
