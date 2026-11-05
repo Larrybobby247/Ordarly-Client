@@ -10,7 +10,7 @@ import InstallBanner from '../../components/InstallBanner';
 import { brandAsApp } from '../../lib/pwa';
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
-const lineKey = (mealId, addonIds) => [mealId, ...[...addonIds].sort()].join('|');
+const lineKey = (mealId, addonIds, sizeId = '') => [mealId, sizeId, ...[...addonIds].sort()].join('|');
 
 function RestaurantSkeleton() {
   return (
@@ -46,19 +46,21 @@ export default function Restaurant({ domain }) {
   const lines = cart.map((l) => {
     const m = byId.get(l.mealId); if (!m) return null;
     const picked = l.addonIds.map((id) => (m.addons || []).find((a) => a._id === id));
-    const valid = m.available && picked.every(Boolean);
+    // Meals sold by size need a size that still exists (older saved carts without one become "unavailable" until re-added).
+    const sized = (m.sizes || []).length > 0; const size = sized ? m.sizes.find((z) => z._id === l.sizeId) : null;
+    const valid = m.available && picked.every(Boolean) && (!sized || !!size);
     const addons = picked.filter(Boolean);
-    const unit = m.price + addons.reduce((s, a) => s + a.price, 0);
-    return { ...l, m, addons, valid, unit };
+    const unit = (size ? size.price : m.price) + addons.reduce((s, a) => s + a.price, 0);
+    return { ...l, m, addons, size, sized, valid, unit };
   }).filter(Boolean);
   const subtotal = lines.reduce((s, l) => s + (l.valid ? l.unit * l.quantity : 0), 0);
   const count = lines.reduce((s, l) => s + l.quantity, 0);
   const hasInvalid = lines.some((l) => !l.valid);
 
-  const addLine = (mealId, addonIds, qty) => setCart((c) => {
-    const k = lineKey(mealId, addonIds); const i = c.findIndex((l) => l.key === k);
+  const addLine = (mealId, addonIds, qty, sizeId = '') => setCart((c) => {
+    const k = lineKey(mealId, addonIds, sizeId); const i = c.findIndex((l) => l.key === k);
     if (i >= 0) return c.map((l, n) => (n === i ? { ...l, quantity: Math.min(50, l.quantity + qty) } : l));
-    return [...c, { key: k, mealId, addonIds: [...addonIds], quantity: Math.min(50, qty) }];
+    return [...c, { key: k, mealId, sizeId: sizeId || undefined, addonIds: [...addonIds], quantity: Math.min(50, qty) }];
   });
   const setQty = (k, q) => setCart((c) => (q <= 0 ? c.filter((l) => l.key !== k) : c.map((l) => (l.key === k ? { ...l, quantity: Math.min(50, q) } : l))));
   const qtyOfMeal = (id) => cart.filter((l) => l.mealId === id).reduce((s, l) => s + l.quantity, 0);
@@ -125,7 +127,7 @@ export default function Restaurant({ domain }) {
                   <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-ink-500">
                     {m.portion && <span>🍽 {m.portion}</span>}{m.prepTime ? <span>⏱ {m.prepTime} min</span> : null}{hasAddons && <span>+ extras</span>}
                   </div>
-                  <div className="mt-auto flex items-center justify-between pt-2"><b className="text-brand-600">{naira(m.price)}</b>
+                  <div className="mt-auto flex items-center justify-between pt-2"><b className="text-brand-600">{(m.sizes || []).length > 1 ? <><span className="text-[11px] font-semibold text-ink-500">From </span>{naira(Math.min(...m.sizes.map((z) => z.price)))}</> : naira(m.sizes?.length ? m.sizes[0].price : m.price)}</b>
                     {!m.available ? <span className="text-xs font-semibold text-red-500">Unavailable</span> : <span className="rounded-full bg-tomato-500 px-3.5 py-1.5 text-xs font-semibold text-white">{q ? `In cart (${q}) · View` : 'View'}</span>}
                   </div>
                 </div>
@@ -140,7 +142,7 @@ export default function Restaurant({ domain }) {
         <div className="fixed inset-x-0 bottom-0 z-20 p-4"><button onClick={() => { setStep('cart'); setOpen(true); }} className="btn-dark mx-auto flex w-full max-w-lg justify-between !rounded-3xl !py-4"><span>View cart · {count} item{count > 1 && 's'}</span><span>{naira(subtotal)}</span></button></div>
       )}
       {contact && <ContactModal r={r} onClose={() => setContact(false)} />}
-      {sheet && <ItemSheet m={sheet} canOrder={r.isOpen} onClose={() => setSheet(null)} onAdd={(ids, qty) => { addLine(sheet._id, ids, qty); setSheet(null); }} />}
+      {sheet && <ItemSheet m={sheet} canOrder={r.isOpen} onClose={() => setSheet(null)} onAdd={(ids, qty, sizeId) => { addLine(sheet._id, ids, qty, sizeId); setSheet(null); }} />}
       {open && <CartSheet {...{ d, r, isPro, lines, subtotal, setQty, step, setStep, setCart, hasInvalid, close: () => setOpen(false), slug: r.slug }} />}
       {report && <ReportModal onClose={() => setReport(false)} source="restaurant_page" restaurantSlug={r.slug} defaultKind="complaint" />}
       <p className="mt-10 text-center text-xs text-ink-500">
@@ -153,6 +155,8 @@ export default function Restaurant({ domain }) {
 // Meal page: full details, extras (add-ons), quantity, then "Add to cart".
 function ItemSheet({ m, canOrder, onClose, onAdd }) {
   const [ids, setIds] = useState([]); const [qty, setQty] = useState(1);
+  const sizes = m.sizes || [];
+  const [sizeId, setSizeId] = useState(sizes.length ? [...sizes].sort((a, b) => a.price - b.price)[0]._id : ''); // cheapest size pre-selected
   const addons = (m.addons || []);
   const groups = useMemo(() => {
     const g = new Map();
@@ -161,7 +165,8 @@ function ItemSheet({ m, canOrder, onClose, onAdd }) {
   }, [addons]);
   useEffect(() => { const k = (e) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
   const toggle = (id) => setIds((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
-  const unit = m.price + addons.filter((a) => ids.includes(a._id)).reduce((s, a) => s + a.price, 0);
+  const basePrice = sizes.length ? (sizes.find((z) => z._id === sizeId)?.price ?? m.price) : m.price;
+  const unit = basePrice + addons.filter((a) => ids.includes(a._id)).reduce((s, a) => s + a.price, 0);
   const blocked = !m.available || !canOrder;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 md:items-center md:p-6" onClick={onClose}>
@@ -171,10 +176,17 @@ function ItemSheet({ m, canOrder, onClose, onAdd }) {
             <button onClick={onClose} className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-xl shadow" aria-label="Close">×</button></div>
           <div className="space-y-4 p-6">
             <div><div className="flex flex-wrap items-center gap-2"><h2 className="font-display text-2xl font-bold">{m.name}</h2>{m.popular && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700">★ Popular</span>}</div>
-              <div className="mt-1 text-lg font-bold text-brand-600">{naira(m.price)}</div></div>
+              <div className="mt-1 text-lg font-bold text-brand-600">{naira(basePrice)}</div></div>
             {m.description && <p className="whitespace-pre-line text-sm text-ink-700">{m.description}</p>}
             {(m.portion || m.prepTime || (m.tags || []).length > 0) && (
               <div className="flex flex-wrap gap-2 text-xs">{m.portion && <span className="chip">🍽 {m.portion}</span>}{m.prepTime ? <span className="chip">⏱ About {m.prepTime} min</span> : null}{(m.tags || []).map((t) => <span key={t} className="chip">{t}</span>)}</div>)}
+            {sizes.length > 0 && (
+              <div role="radiogroup" aria-label="Choose a size"><div className="label">Choose a size <span className="font-normal text-red-500">(required)</span></div>
+                <div className="space-y-2">{sizes.map((z) => (
+                  <label key={z._id} className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 text-sm ${sizeId === z._id ? 'border-brand-500 bg-brand-50' : 'border-ink-300'}`}>
+                    <input type="radio" name="size" checked={sizeId === z._id} onChange={() => setSizeId(z._id)} />
+                    <span className="flex-1">{z.name}</span><b>{naira(z.price)}</b>
+                  </label>))}</div></div>)}
             {groups.map(([g, list]) => (
               <div key={g}><div className="label">{g} <span className="font-normal text-ink-500">(optional)</span></div>
                 <div className="space-y-2">{list.map((a) => (
@@ -189,7 +201,7 @@ function ItemSheet({ m, canOrder, onClose, onAdd }) {
           {m.available && !canOrder && <p className="mb-2 text-center text-xs text-ink-500">The restaurant is closed, so ordering is paused.</p>}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-full bg-brand-50 px-1"><button className="h-10 w-10 font-bold" aria-label="Less" onClick={() => setQty(Math.max(1, qty - 1))}>−</button><span className="w-5 text-center font-bold">{qty}</span><button className="h-10 w-10 font-bold" aria-label="More" onClick={() => setQty(Math.min(50, qty + 1))}>+</button></div>
-            <button disabled={blocked} className="btn-accent flex-1 !py-3" onClick={() => onAdd(ids, qty)}>Add to cart · {naira(unit * qty)}</button>
+            <button disabled={blocked} className="btn-accent flex-1 !py-3" onClick={() => onAdd(ids, qty, sizeId)}>Add to cart · {naira(unit * qty)}</button>
           </div>
         </div>
       </div>
@@ -251,7 +263,7 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
   const co = d.checkout;
   const [f, setF] = useState({ customerName: '', customerEmail: '', customerPhone: '', notes: '', fulfillment: co?.fulfillment.pickup ? 'pickup' : co?.fulfillment.delivery ? 'delivery' : 'dine_in', deliveryPlaceId: '', deliveryAddress: '', tableNumber: '', paymentMethod: '', confirmed: false });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [done, setDone] = useState(null); const [idem] = useState(uid);
-  const cartPayload = lines.filter((l) => l.valid).map((l) => ({ mealId: l.mealId, quantity: l.quantity, ...(l.addonIds.length ? { addonIds: l.addonIds } : {}) }));
+  const cartPayload = lines.filter((l) => l.valid).map((l) => ({ mealId: l.mealId, quantity: l.quantity, ...(l.size ? { sizeId: l.size._id } : {}), ...(l.addonIds.length ? { addonIds: l.addonIds } : {}) }));
   const [quote, setQuote] = useState(null);
   const fee = f.fulfillment === 'delivery' && quote ? quote.fee : 0;
   const pms = co ? [co.payments.paystack && ['paystack', 'Pay online (card / transfer) — recommended'], co.payments.bankTransfer && ['bank_transfer', 'Bank transfer'], co.payments.pod && f.fulfillment === 'delivery' && ['pod', 'Pay on delivery']].filter(Boolean) : [];
@@ -298,9 +310,9 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
 
         {!done && step === 'cart' && (<>
           <div className="space-y-3">{lines.map((l) => (
-            <div key={l.key} className="flex items-center justify-between gap-3 text-sm"><div className="min-w-0"><div className="truncate font-semibold">{l.m.name}</div>
+            <div key={l.key} className="flex items-center justify-between gap-3 text-sm"><div className="min-w-0"><div className="truncate font-semibold">{l.m.name}{l.size && <span className="font-normal text-ink-500"> · {l.size.name}</span>}</div>
               {l.addons.length > 0 && <div className="text-xs text-ink-500">+ {l.addons.map((a) => a.name).join(', ')}</div>}
-              {l.valid ? <div className="text-xs text-ink-500">{naira(l.unit)} each</div> : <div className="text-xs font-semibold text-red-500">{l.m.available ? 'An extra is no longer available' : 'No longer available'}</div>}</div>
+              {l.valid ? <div className="text-xs text-ink-500">{naira(l.unit)} each</div> : <div className="text-xs font-semibold text-red-500">{!l.m.available ? 'No longer available' : l.sized && !l.size ? 'Please choose a size again' : 'An extra is no longer available'}</div>}</div>
               <div className="flex items-center gap-2"><button className="h-7 w-7 rounded-full border" aria-label="Less" onClick={() => setQty(l.key, l.quantity - 1)}>−</button><span className="w-5 text-center font-bold">{l.quantity}</span><button className="h-7 w-7 rounded-full border" aria-label="More" onClick={() => setQty(l.key, l.quantity + 1)}>+</button></div>
               <b className="w-20 text-right">{l.valid ? naira(l.unit * l.quantity) : '—'}</b></div>))}</div>
           <div className="mt-4 flex justify-between border-t pt-3 font-bold"><span>Subtotal</span><span>{naira(subtotal)}</span></div>
