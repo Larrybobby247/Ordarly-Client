@@ -119,7 +119,7 @@ export function Analytics() {
 
 /* ---------------- Subscription ---------------- */
 export function Subscription() {
-  const { data, reload } = useDash(); const [s, setS] = useState(null); const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false);
+  const { data, reload } = useDash(); const [s, setS] = useState(null); const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false); const [interval, setInterval_] = useState('monthly');
   const load = () => api.get('/subscription').then(setS);
   useEffect(() => {
     load();
@@ -164,15 +164,27 @@ export function Subscription() {
           {sub?.status === 'expired' && 'Your Pro plan expired. Your data is safe.'}
           {(!sub || sub.status === 'free') && 'Upgrade to unlock checkout, payments, delivery, tracking, QR codes and a custom domain.'}
         </div>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button className="btn-accent" disabled={busy} onClick={() => run(async () => { const r = await api.post('/subscription/checkout'); location.href = r.authorizationUrl; })}>{s.isPro ? 'Renew / extend' : 'Subscribe'} · {naira(s.price)}/month</button>
-          {!sub?.trialUsed && !s.isPro && <button className="btn-ghost !bg-white/10 !text-white !border-white/20" disabled={busy} onClick={() => run(async () => { await api.post('/restaurant/trial'); await reload(); await load(); setMsg({ kind: 'ok', text: '14-day Pro trial started.' }); })}>Start 14-day free trial</button>}
+        <div className="mt-5 space-y-3">
+          {/* Billing period. The server decides the real amount; these numbers are only for display. */}
+          <div role="radiogroup" aria-label="Billing period" className="grid gap-2 sm:grid-cols-2">
+            {[['monthly', 'Monthly', `${naira(s.price)} / month`, 'Renew every month'], ['yearly', 'Yearly', `${naira(s.yearly.price)} / year`, `Save ${s.yearly.discountPct}% (${naira(s.yearly.savings)}) · about ${naira(s.yearly.monthlyEquivalent)}/month`]].map(([k, t, price, sub]) => (
+              <label key={k} className={`relative cursor-pointer rounded-2xl border p-4 text-left ${interval === k ? 'border-tomato-500 bg-white/10' : 'border-white/20'}`}>
+                <input type="radio" name="interval" className="sr-only" checked={interval === k} onChange={() => setInterval_(k)} />
+                {k === 'yearly' && <span className="absolute -top-2 right-3 rounded-full bg-tomato-500 px-2 py-0.5 text-[10px] font-bold">Save {s.yearly.discountPct}%</span>}
+                <div className="text-sm font-semibold">{t}</div><div className="mt-0.5 font-display text-xl font-bold">{price}</div><div className="mt-0.5 text-xs text-white/60">{sub}</div>
+              </label>))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-accent" disabled={busy} onClick={() => run(async () => { const r = await api.post('/subscription/checkout', { interval }); location.href = r.authorizationUrl; })}>{s.isPro ? 'Renew / extend' : 'Subscribe'} · {interval === 'yearly' ? `${naira(s.yearly.price)}/year` : `${naira(s.price)}/month`}</button>
+            {!sub?.trialUsed && !s.isPro && <button className="btn-ghost !bg-white/10 !text-white !border-white/20" disabled={busy} onClick={() => run(async () => { await api.post('/restaurant/trial'); await reload(); await load(); setMsg({ kind: 'ok', text: '14-day Pro trial started.' }); })}>Start 14-day free trial</button>}
+          </div>
+          {interval === 'yearly' && <p className="text-xs text-white/60">One payment gives you 365 days of Pro{sub?.status === 'active' ? ', added on top of your current period' : ''}. Pro does not renew by itself.</p>}
         </div>
       </div>
       <div className="card p-6"><h3 className="mb-2 font-bold">Subscription payments</h3>
         <p className="mb-3 text-xs text-ink-500">These are your Ordarly subscription payments only, separate from customer food orders.</p>
         {s.payments.length === 0 ? <p className="text-sm text-ink-500">No payments yet.</p> : s.payments.map((p) => (
-          <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge>
+          <div key={p._id} className="flex items-center justify-between border-t border-black/5 py-2.5 text-sm"><span>{new Date(p.createdAt).toLocaleDateString()} · {p.providerReference}{p.interval === 'yearly' && <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">Yearly</span>}</span><span className="flex items-center gap-2"><b>{naira(p.amount)}</b><Badge color={p.status === 'success' ? 'green' : p.status === 'failed' ? 'red' : 'amber'}>{p.status}</Badge>
             {p.status === 'pending' && (
   <button
     className="text-xs font-semibold text-brand-600 underline"
@@ -182,10 +194,6 @@ export function Subscription() {
         const r = await api.post('/subscription/verify', {
           reference: p.providerReference,
         });
-
-        // TEMPORARY DIAGNOSTIC: inspect the backend response
-        console.log('Subscription verification response:', r);
-        alert(JSON.stringify(r, null, 2));
 
         setMsg(
           r.status === 'success'
