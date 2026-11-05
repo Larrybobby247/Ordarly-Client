@@ -1,4 +1,8 @@
-const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
+// All API calls go to the backend. On a restaurant's custom domain the page is served by Vercel, which has NO /api, so a relative
+// base would send requests to the custom domain and get the HTML page back. Set VITE_API_URL (e.g. https://api.ordarly.com.ng) on Vercel.
+const API_ORIGIN = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '').replace(/\/api$/, '');
+const BASE = API_ORIGIN + '/api';
+if (import.meta.env.PROD && !API_ORIGIN) console.error('[ordarly] VITE_API_URL is not set: custom-domain pages cannot reach the API.');
 
 export class ApiError extends Error {
   constructor(msg, status, data) { super(msg); this.status = status; this.data = data; }
