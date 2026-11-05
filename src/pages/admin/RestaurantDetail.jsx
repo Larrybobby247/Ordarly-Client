@@ -32,6 +32,7 @@ export default function RestaurantDetail() {
         </div>
         <div className="flex flex-wrap gap-2">
           {r.status === 'active' ? <button className="btn-ghost !text-red-600" onClick={() => setModal('suspend')}>Suspend</button> : <button className="btn-primary" disabled={busy} onClick={() => run(() => api.post(`/admin/restaurants/${id}/reactivate`), 'Restaurant reactivated.')}>Reactivate</button>}
+          <Link to={`/admin/menus/${id}`} className="btn-ghost">Manage menu</Link>
           {isPro ? <button className="btn-ghost" onClick={() => setModal('revoke')}>Revoke Pro</button> : null}
           <button className="btn-accent" onClick={() => setModal('grant')}>{isPro ? 'Extend Pro' : 'Grant Pro'}</button>
         </div>
