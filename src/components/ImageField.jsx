@@ -3,13 +3,13 @@ import { useState } from 'react';
 import { upload } from '../lib/api';
 
 // Upload to Cloudinary through the API, or paste a URL. Falls back gracefully when uploads aren't configured.
-export default function ImageField({ value, onChange, label = 'Image' }) {
+export default function ImageField({ value, onChange, label = 'Image', uploadFor }) {
   const [busy, setBusy] = useState(false); const [err, setErr] = useState('');
   const pick = async (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     if (f.size > 5 * 1024 * 1024) return setErr('Image must be under 5 MB.');
     setBusy(true); setErr('');
-    try { onChange((await upload('/uploads/image', f, 'image')).url); } catch (x) { setErr(x.message); } finally { setBusy(false); e.target.value = ''; }
+    try { onChange((await upload(uploadFor ? `/uploads/image?restaurant=${encodeURIComponent(uploadFor)}` : '/uploads/image', f, 'image')).url); } catch (x) { setErr(x.message); } finally { setBusy(false); e.target.value = ''; }
   };
   return (
     <div>

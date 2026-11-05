@@ -10,6 +10,7 @@ const nav = [
   ['/admin', 'Overview', 'M3 12l9-9 9 9M5 10v10h14V10', true],
   ['/admin/users', 'Users', 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0'],
   ['/admin/restaurants', 'Restaurants', 'M4 21V8l8-5 8 5v13M9 21v-6h6v6'],
+  ['/admin/menus', 'Restaurant menus', 'M6 3h12v18H6zM9 8h6M9 12h6M9 16h4'],
   ['/admin/subscriptions', 'Subscriptions', 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z'],
   ['/admin/transactions', 'Transactions', 'M3 6h18v12H3zM3 10h18'],
   ['/admin/complaints', 'Complaints', 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', false, 'complaints'],

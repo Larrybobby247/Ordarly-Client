@@ -17,6 +17,7 @@ export default function PricingPlans() {
       <div className="rounded-3xl bg-night p-7 text-white shadow-card">
         <div className="flex items-center justify-between"><h3 className="text-lg font-bold">Pro</h3>{pricing.trialDays > 0 && <span className="rounded-full bg-tomato-500 px-3 py-1 text-[11px] font-bold">{pricing.trialDays}-day free trial</span>}</div>
         <div className="mt-2 font-display text-4xl font-bold">{naira(pricing.proPriceNgn)}<span className="text-base font-sans font-normal text-white/60"> / month</span></div><p className="text-sm text-white/60">For restaurants taking online orders</p>
+        {pricing.yearlyPriceNgn > 0 && <p className="mt-1 text-sm font-semibold text-brand-100">or {naira(pricing.yearlyPriceNgn)} / year · save {pricing.yearlyDiscountPct}%</p>}
         <ul className="mt-5 space-y-2.5 text-white">
           <Row>Everything in Free</Row><Row>Unlimited meals</Row><Row>Checkout with Paystack, bank transfer &amp; pay on delivery</Row><Row>Delivery priced by distance, pickup &amp; dine-in</Row><Row>Secure order tracking &amp; email notifications</Row><Row>Printable QR code</Row><Row>Custom domain</Row><Row>Sales &amp; order analytics</Row>
         </ul>
