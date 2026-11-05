@@ -40,6 +40,7 @@ const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminUserDetail = lazy(() => import('./pages/admin/UserDetail'));
 const AdminRestaurants = lazy(() => import('./pages/admin/Restaurants'));
 const AdminRestaurantDetail = lazy(() => import('./pages/admin/RestaurantDetail'));
+const AdminMenus = lazy(() => import('./pages/admin/Menus'));
 const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'));
 const AdminTransactions = lazy(() => import('./pages/admin/Transactions'));
 const AdminComplaints = lazy(() => import('./pages/admin/Complaints'));
@@ -51,19 +52,31 @@ const AdminSettings = lazy(() => import('./pages/admin/PlatformSettings'));
 
 
 const PLATFORM = (import.meta.env.VITE_PLATFORM_DOMAIN || 'localhost:5173').toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-const host = window.location.host.toLowerCase();
+const PLATFORM_URL = import.meta.env.VITE_PLATFORM_DOMAIN ? `https://${PLATFORM}` : 'https://ordarly.com.ng';
+const host = window.location.hostname.toLowerCase();
 const bare = (h) => h.replace(/^www\./, '');
 // Hosts that are definitely the Ordarly app itself: the configured platform host, localhost, raw IPs and hosting previews.
 const isPlatformHost = bare(host) === bare(PLATFORM) || /^(localhost|127\.|\[::1\]|0\.0\.0\.0|\d{1,3}(\.\d{1,3}){3})/.test(host) || host.endsWith('.vercel.app') || host.endsWith('.netlify.app') || host.endsWith('.onrender.com');
 
-// Anything else MAY be a restaurant's custom domain. We only treat it as one after the API confirms it, so a
-// mis-set VITE_PLATFORM_DOMAIN can never turn the whole app (and every restaurant link) into "Restaurant not found".
+// Anything else MAY be a restaurant's custom domain. The SERVER decides: it answers { platform: true } for Ordarly's own hostnames,
+// the restaurant for an active custom domain, and 404 (DOMAIN_NOT_FOUND) for anything unknown, unverified or disconnected.
+// So a mis-set VITE_PLATFORM_DOMAIN can never turn the whole app into "Restaurant not found".
+function UnknownDomain() {
+  return <div className="grid min-h-screen place-items-center p-6 text-center"><div className="max-w-sm"><h1 className="font-display text-3xl font-bold">This address isn't connected yet</h1><p className="mt-2 text-ink-500">{host} is not linked to an active restaurant page. If you own this restaurant, finish connecting the domain in your Ordarly dashboard.</p><a href={PLATFORM_URL} className="btn-primary mt-5">Go to Ordarly</a></div></div>;
+}
+
 function CustomDomainGate() {
-  const [state, setState] = useState('checking');
-  useEffect(() => { // PERF (changed): cached for 30s because the Restaurant page asks for the exact same data right after this check (was a duplicate request).
-    api.get(`/public/by-domain/${encodeURIComponent(host)}`, { ttl: 30000 }).then(() => setState('custom')).catch(() => setState('platform')); }, []);
+  const [state, setState] = useState('checking'); const [tick, setTick] = useState(0);
+  useEffect(() => { // cached for 30s because the Restaurant page asks for the exact same data right after this check (no duplicate request).
+    setState('checking');
+    api.get(`/public/by-domain/${encodeURIComponent(host)}`, { ttl: 30000 })
+      .then((r) => setState(r.platform ? 'platform' : 'custom'))
+      .catch((e) => setState(e.status === 404 ? 'unknown' : 'error'));
+  }, [tick]);
   if (state === 'checking') return <Spinner />;
   if (state === 'custom') return <Routes><Route path="/track/:token" element={<Track />} /><Route path="*" element={<Restaurant domain={host} />} /></Routes>;
+  if (state === 'unknown') return <UnknownDomain />;
+  if (state === 'error') return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="font-display text-2xl font-bold">We couldn't load this page</h1><p className="mt-2 text-ink-500">Please check your connection and try again.</p><button className="btn-primary mt-5" onClick={() => setTick((n) => n + 1)}>Try again</button></div></div>;
   return <PlatformRoutes />;
 }
 
@@ -88,6 +101,7 @@ function PlatformRoutes() {
         <Route index element={<AdminOverview />} />
         <Route path="users" element={<AdminUsers />} /><Route path="users/:id" element={<AdminUserDetail />} />
         <Route path="restaurants" element={<AdminRestaurants />} /><Route path="restaurants/:id" element={<AdminRestaurantDetail />} />
+        <Route path="menus" element={<AdminMenus />} /><Route path="menus/:id" element={<AdminMenus />} />
         <Route path="subscriptions" element={<AdminSubscriptions />} /><Route path="transactions" element={<AdminTransactions />} />
         <Route path="complaints" element={<AdminComplaints />} /><Route path="complaints/:id" element={<AdminComplaintDetail />} />
         <Route path="analytics" element={<AdminAnalytics />} /><Route path="emails" element={<AdminEmails />} />
