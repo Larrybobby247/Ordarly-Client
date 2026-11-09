@@ -11,19 +11,40 @@ import InstallBanner from './InstallBanner';
 const DashCtx = createContext(null);
 export const useDash = () => useContext(DashCtx);
 
-const nav = [
-  ['/dashboard', 'Overview', 'M3 12l9-9 9 9M5 10v10h14V10', true],
-  ['/dashboard/orders', 'Orders', 'M6 2h12l2 5H4zM4 7v13h16V7', false, 'orders'],
-  ['/dashboard/menu', 'Menu', 'M4 6h16M4 12h16M4 18h10'],
-  ['/dashboard/messages', 'Messages', 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', false, 'messages'],
-  ['/dashboard/reports', 'Reports', 'M5 21V4h11l-1 4 4 2H5', false, 'reports'],
-  ['/dashboard/fulfillment', 'Delivery & Pickup', 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z'],
-  ['/dashboard/payments', 'Payments', 'M3 6h18v12H3zM3 10h18'],
-  ['/dashboard/qr', 'QR Code', 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z'],
-  ['/dashboard/analytics', 'Analytics', 'M4 20V10M10 20V4M16 20v-8M22 20H2'],
-  ['/dashboard/subscription', 'Subscription', 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z'],
-  ['/dashboard/settings', 'Settings', 'M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 00-2-1.2L14 3h-4l-.5 2.6a7 7 0 00-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 005 12'],
+// [path, label, icon, end?, badgeKey?, rule]  rule: 'owner' = account owner only, 'perm:x' = needs that permission, 'business:x' = Business plan AND permission x
+const NAV = [
+  ['/dashboard', 'Overview', 'M3 12l9-9 9 9M5 10v10h14V10', true, undefined, 'owner'],
+  ['/dashboard/orders', 'Orders', 'M6 2h12l2 5H4zM4 7v13h16V7', false, 'orders', 'perm:orders'],
+  ['/dashboard/menu', 'Menu', 'M4 6h16M4 12h16M4 18h10', false, undefined, 'perm:menu'],
+  ['/dashboard/earnings', 'Earnings', 'M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', false, undefined, 'perm:analytics'],
+  ['/dashboard/branches', 'Branches', 'M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z', false, undefined, 'branches'],
+  ['/dashboard/staff', 'Staff', 'M16 11a4 4 0 10-8 0M4 21a8 8 0 0116 0', false, undefined, 'business:staff'],
+  ['/dashboard/messages', 'Messages', 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', false, 'messages', 'owner'],
+  ['/dashboard/reports', 'Reports', 'M5 21V4h11l-1 4 4 2H5', false, 'reports', 'owner'],
+  ['/dashboard/fulfillment', 'Delivery & Pickup', 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z', false, undefined, 'owner'],
+  ['/dashboard/payments', 'Payments', 'M3 6h18v12H3zM3 10h18', false, undefined, 'owner'],
+  ['/dashboard/qr', 'QR Code', 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2z', false, undefined, 'owner'],
+  ['/dashboard/analytics', 'Analytics', 'M4 20V10M10 20V4M16 20v-8M22 20H2', false, undefined, 'perm:analytics'],
+  ['/dashboard/subscription', 'Subscription', 'M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z', false, undefined, 'owner'],
+  ['/dashboard/settings', 'Settings', 'M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 00-2-1.2L14 3h-4l-.5 2.6a7 7 0 00-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 005 12', false, undefined, 'owner'],
 ];
+
+/** What the signed-in person may do, derived from the SERVER's answer (the server enforces it again on every request). */
+export function accessOf(data) {
+  const a = data?.access;
+  const isOwner = !a || a.isOwner;
+  const perms = new Set(a?.perms || []);
+  const can = (p) => isOwner || perms.has(p);
+  return { isOwner, can, allBranches: isOwner || !!a?.allBranches, branchIds: a?.branchIds || [], isBusiness: !!data?.isBusiness };
+}
+
+const showItem = (rule, acc) => {
+  if (!rule || rule === 'owner') return acc.isOwner;
+  if (rule === 'branches') return acc.isOwner || (acc.isBusiness && (acc.can('branches') || acc.can('menu')));
+  if (rule.startsWith('business:')) return acc.isBusiness && acc.can(rule.slice(9));
+  if (rule.startsWith('perm:')) return acc.can(rule.slice(5));
+  return true;
+};
 
 export default function DashboardLayout() {
   const { user, loading, logout } = useAuth(); const go = useNavigate();
@@ -33,16 +54,21 @@ export default function DashboardLayout() {
   const refreshSummary = useCallback(() => api.get('/inbox/summary').then(setSum).catch(() => {}), []);
   useEffect(() => { if (user) load(); }, [user, load]);
   useEffect(() => {
-    if (user?.role !== 'owner') return undefined;
+    if (user?.role !== 'owner') return undefined; // staff do not use the owner inbox
     refreshSummary();
   }, [user, refreshSummary]);
   // PERF (changed): counters refresh every 20s only while the tab is visible (previously also in background tabs).
   useVisibleInterval(() => { if (user?.role === 'owner') refreshSummary(); }, 20000);
-  const ctx = useMemo(() => ({ data, reload: load, summary: sum, refreshSummary }), [data, load, sum, refreshSummary]);
+  const acc = useMemo(() => accessOf(data), [data]);
+  const ctx = useMemo(() => ({ data, reload: load, summary: sum, refreshSummary, access: acc, branches: data?.branches || [] }), [data, load, sum, refreshSummary, acc]);
   if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role === 'admin') return <Navigate to="/admin" replace />;
 
+  const nav = NAV.filter((n) => showItem(n[5], acc)).map((n) => n.slice(0, 5));
+  // Staff land on their first allowed page instead of the owner overview.
+  if (data && !acc.isOwner && window.location.pathname.replace(/\/+$/, '') === '/dashboard' && nav[0]) return <Navigate to={nav[0][0]} replace />;
+  const planKey = data?.planKey || (data?.isPro ? 'pro' : 'free');
   const sub = data?.subscription;
   const banner = data && (data.isPro && sub?.status === 'trialing'
     ? `Pro trial: ${Math.max(0, Math.ceil((new Date(sub.trialEnd) - Date.now()) / 86400000))} day(s) left`
@@ -51,13 +77,14 @@ export default function DashboardLayout() {
   return (
     <DashCtx.Provider value={ctx}>
       <Shell nav={nav} badges={{ orders: sum.newOrders, messages: sum.unreadMessages, reports: sum.activeReports }} brand={<Logo />}
-        sidebarExtra={data && (
+        sidebarExtra={data && acc.isOwner && (
           <a href={data.publicUrl} target="_blank" rel="noreferrer" className="block rounded-3xl bg-night p-4 text-xs text-white">
             <div className="text-white/60">Your public page</div><div className="mt-1 break-all font-semibold">{data.publicUrl.replace(/^https?:\/\//, '')}</div><div className="mt-2 text-brand-100">Open ↗</div>
           </a>)}
         topLeft={<div className="hidden md:block"><div className="font-display text-xl font-bold">Hello, {user.name.split(' ')[0]} 👋</div><div className="truncate text-xs text-ink-500">{data?.restaurant.name}</div></div>}
         topRight={<>
-          <span className={`rounded-full px-3 py-1 text-xs font-bold ${data?.isPro ? 'bg-tomato-50 text-tomato-600' : 'bg-slate-100 text-slate-600'}`}>{data?.isPro ? 'PRO' : 'FREE'}</span>
+          {!acc.isOwner && <span className="hidden rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700 sm:inline">STAFF</span>}
+          <span className={`rounded-full px-3 py-1 text-xs font-bold ${planKey === 'business' ? 'bg-violet-50 text-violet-700' : planKey === 'pro' ? 'bg-tomato-50 text-tomato-600' : 'bg-slate-100 text-slate-600'}`}>{planKey.toUpperCase()}</span>
           <button onClick={async () => { await logout(); go('/'); }} className="btn-ghost !py-1.5">Sign out</button></>}
         banners={<>
           <NotifyBanner compact />

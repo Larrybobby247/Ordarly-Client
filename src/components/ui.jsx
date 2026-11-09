@@ -74,7 +74,7 @@ export function Alert({ kind = 'error', children }) {
 
 const badgeColors = {
   green: 'bg-brand-50 text-brand-700', red: 'bg-red-50 text-red-600', amber: 'bg-amber-50 text-amber-700',
-  blue: 'bg-sky-50 text-sky-700', gray: 'bg-slate-100 text-slate-600',
+  blue: 'bg-sky-50 text-sky-700', violet: 'bg-violet-50 text-violet-700', gray: 'bg-slate-100 text-slate-600',
 };
 export const Badge = ({ color = 'gray', children }) => (
   <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${badgeColors[color]}`}>{children}</span>
@@ -87,7 +87,7 @@ export function ProLock({ title, children }) {
     <div className="card p-6 text-center">
       <div className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-2xl bg-tomato-50 text-tomato-500">★</div>
       <h3 className="font-bold">{title} is a Pro feature</h3>
-      <p className="mx-auto mt-1 max-w-sm text-sm text-ink-500">{children || 'Start your free 14-day trial or subscribe to unlock this.'}</p>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-ink-500">{children || 'Upgrade your plan to unlock this.'}</p>
       <Link to="/dashboard/subscription" className="btn-accent mt-4">See Pro options</Link>
     </div>
   );
