@@ -7,7 +7,7 @@ export const PHONE_DIGITS = PHONE.replace(/\D/g, '');
 export const WHATSAPP_URL = `https://wa.me/${PHONE_DIGITS}?text=${encodeURIComponent('Hello Ordarly, I have a question.')}`;
 const FALLBACK_EMAIL = import.meta.env.VITE_SUPPORT_EMAIL || 'support@ordarly.com';
 
-const DEFAULTS = { pricing: { proPriceNgn: 7500, yearlyPriceNgn: 85500, yearlyDiscountPct: 5, trialDays: 14, freeMeals: 10 }, supportEmail: FALLBACK_EMAIL, announcement: { enabled: false } };
+const DEFAULTS = { pricing: { proPriceNgn: 7500, yearlyPriceNgn: 85500, yearlyDiscountPct: 5, freeCommissionPct: 5, proCommissionPct: 0, freeMeals: 10, business: { open: false } }, supportEmail: FALLBACK_EMAIL, announcement: { enabled: false } };
 let cache = null;
 
 // Live platform info (pricing and support email are editable by the admin). Falls back to sensible defaults offline.

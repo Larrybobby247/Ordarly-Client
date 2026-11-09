@@ -7,7 +7,7 @@ export const useAuth = () => useContext(Ctx);
 
 // PERF (new): customers on a restaurant page or an order-tracking page never need login info, so we skip the /auth/me request there
 // (one less request before the menu can load). Everything else (dashboard, admin, login, marketing) still checks as before.
-const PLATFORM_PATHS = ['', 'how-it-works', 'pricing', 'about', 'faq', 'contact', 'terms', 'privacy', 'login', 'register', 'verify-email', 'forgot-password', 'reset-password', 'dashboard', 'admin'];
+const PLATFORM_PATHS = ['', 'how-it-works', 'pricing', 'about', 'faq', 'contact', 'terms', 'privacy', 'login', 'register', 'accept-invite', 'verify-email', 'forgot-password', 'reset-password', 'dashboard', 'admin'];
 const needsAuthCheck = (pathname) => PLATFORM_PATHS.includes(pathname.split('/')[1] || '');
 
 export function AuthProvider({ children }) {
