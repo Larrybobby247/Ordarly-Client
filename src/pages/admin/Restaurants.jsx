@@ -7,7 +7,7 @@ import { subColor } from './Users';
 
 const FIELDS = [
   { key: 'q', label: 'Search name, page link or email', type: 'search', placeholder: 'Type to search…' },
-  { key: 'plan', label: 'Plan', type: 'select', options: [['free', 'Free'], ['pro', 'Pro']] },
+  { key: 'plan', label: 'Plan', type: 'select', options: [['free', 'Free'], ['pro', 'Pro'], ['business', 'Business']] },
   { key: 'status', label: 'Status', type: 'select', options: [['active', 'Active'], ['suspended', 'Suspended']] },
   { key: 'state', label: 'State', type: 'select', options: STATES.map((s) => [s, s]) },
 ];
@@ -26,7 +26,7 @@ export default function Restaurants() {
           { head: 'Restaurant', cell: (x) => <><div className="font-semibold">{x.name}</div><div className="text-xs text-ink-500">/{x.slug}{x.customDomain && ` · ${x.customDomain}`}</div></> },
           { head: 'Owner', cell: (x) => (x.owner ? <><div>{x.owner.name}</div><div className="text-xs text-ink-500">{x.owner.email}</div></> : '—') },
           { head: 'State', cell: (x) => x.state || '—' },
-          { head: 'Plan', cell: (x) => <div className="flex flex-wrap gap-1"><Badge color={x.plan === 'pro' ? 'green' : 'gray'}>{(x.plan || 'free').toUpperCase()}</Badge>{x.subscription && <Badge color={subColor(x.subscription.status)}>{pretty(x.subscription.status)}</Badge>}</div> },
+          { head: 'Plan', cell: (x) => <div className="flex flex-wrap gap-1"><Badge color={x.plan === 'business' ? 'violet' : x.plan === 'pro' ? 'green' : 'gray'}>{(x.plan || 'free').toUpperCase()}</Badge>{x.subscription && <Badge color={subColor(x.subscription.status)}>{pretty(x.subscription.status)}</Badge>}</div> },
           { head: 'Status', cell: (x) => <Badge color={x.status === 'active' ? 'green' : 'red'}>{pretty(x.status)}</Badge> },
           { head: 'Joined', cell: (x) => <span className="whitespace-nowrap text-xs text-ink-500">{fmtDate(x.createdAt)}</span> },
         ]} />

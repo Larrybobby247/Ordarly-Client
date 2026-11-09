@@ -52,9 +52,14 @@ export default function PlatformSettings() {
   };
   const savePlans = async (e) => {
     e.preventDefault(); setBusy('p'); setM2(null);
+    const n = (v) => Number(v);
     try {
-      const r = await api.put('/admin/plans', { free: { maxActiveMeals: Number(plans.free.maxActiveMeals) }, pro: { priceNgn: Number(plans.pro.priceNgn), trialDays: Number(plans.pro.trialDays) } });
-      setPlans(r); setM2({ kind: 'ok', text: 'Saved. New prices apply to future payments only.' });
+      const r = await api.put('/admin/plans', {
+        free: { maxActiveMeals: plans.free.maxActiveMeals === null || plans.free.maxActiveMeals === '' ? null : n(plans.free.maxActiveMeals), commissionPct: n(plans.free.commissionPct) },
+        pro: { priceNgn: n(plans.pro.priceNgn), commissionPct: n(plans.pro.commissionPct), yearlyDiscountPct: n(plans.pro.yearlyDiscountPct) },
+        business: { enabled: !!plans.business.enabled, priceNgn: n(plans.business.priceNgn), maxBranches: n(plans.business.maxBranches), commissionPct: n(plans.business.commissionPct), yearlyDiscountPct: n(plans.business.yearlyDiscountPct) },
+      });
+      setPlans(r); setM2({ kind: 'ok', text: 'Saved. New prices and commission rates apply to future payments and orders only.' });
     } catch (x) { setM2({ kind: 'error', text: x.message }); } finally { setBusy(''); }
   };
   const setA = (patch) => setP({ ...p, announcement: { ...p.announcement, ...patch } });
@@ -79,15 +84,33 @@ export default function PlatformSettings() {
         <button className="btn-primary" disabled={busy === 'g'}>{busy === 'g' ? 'Saving…' : 'Save general settings'}</button>
       </form>
 
-      <form onSubmit={savePlans} className="card space-y-5 p-6">
-        <h2 className="font-bold">Plans & pricing</h2>
+      <form onSubmit={savePlans} className="card space-y-6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold">Plans, pricing & commission</h2><a href="/admin/revenue" className="text-xs font-semibold text-brand-600 underline">Revenue & commission overview</a></div>
         {m2 && <Alert kind={m2.kind}>{m2.text}</Alert>}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Pro price per month (₦)" hint={`Currently ${naira(plans.pro.priceNgn)}`}><input type="number" className="input" min={100} step={100} required value={plans.pro.priceNgn} onChange={(e) => setPlan('pro', { priceNgn: e.target.value })} /></Field>
-          <Field label="Free trial (days)"><input type="number" className="input" min={0} max={90} required value={plans.pro.trialDays} onChange={(e) => setPlan('pro', { trialDays: e.target.value })} /></Field>
-          <Field label="Free plan: active meals"><input type="number" className="input" min={1} max={1000} required value={plans.free.maxActiveMeals} onChange={(e) => setPlan('free', { maxActiveMeals: e.target.value })} /></Field>
-        </div>
-        <Alert kind="info">The price is always applied on the server when a payment starts. Lowering the meal limit does not delete anything: restaurants over the limit just can't activate more meals.</Alert>
+
+        <fieldset className="space-y-3 rounded-2xl border border-black/5 p-4"><legend className="px-1 text-sm font-bold">Free plan</legend>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Commission on meal subtotal (%)" hint="Charged on completed online-paid orders. Never on delivery fees."><input type="number" className="input" min={0} max={50} step="0.1" required value={plans.free.commissionPct} onChange={(e) => setPlan('free', { commissionPct: e.target.value })} /></Field>
+            <Field label="Active meals limit" hint="Leave empty for unlimited."><input type="number" className="input" min={1} max={1000} placeholder="Unlimited" value={plans.free.maxActiveMeals ?? ''} onChange={(e) => setPlan('free', { maxActiveMeals: e.target.value === '' ? null : e.target.value })} /></Field>
+          </div></fieldset>
+
+        <fieldset className="space-y-3 rounded-2xl border border-black/5 p-4"><legend className="px-1 text-sm font-bold">Pro plan</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Price per month (₦)" hint={`Currently ${naira(plans.pro.priceNgn)}`}><input type="number" className="input" min={100} step={100} required value={plans.pro.priceNgn} onChange={(e) => setPlan('pro', { priceNgn: e.target.value })} /></Field>
+            <Field label="Commission (%)"><input type="number" className="input" min={0} max={50} step="0.1" required value={plans.pro.commissionPct} onChange={(e) => setPlan('pro', { commissionPct: e.target.value })} /></Field>
+            <Field label="Yearly discount (%)"><input type="number" className="input" min={0} max={50} step="0.5" required value={plans.pro.yearlyDiscountPct} onChange={(e) => setPlan('pro', { yearlyDiscountPct: e.target.value })} /></Field>
+          </div></fieldset>
+
+        <fieldset className="space-y-3 rounded-2xl border border-black/5 p-4"><legend className="px-1 text-sm font-bold">Business / Multi-branch plan</legend>
+          <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={!!plans.business.enabled} onChange={(e) => setPlan('business', { enabled: e.target.checked })} /><span><b>Open for sign-up</b><span className="block text-xs text-ink-500">Needs a price and a branch limit above zero. While off, the site shows "Custom" and restaurants cannot buy it (admins can still grant it).</span></span></label>
+          <div className="grid gap-4 sm:grid-cols-4">
+            <Field label="Price per month (₦)"><input type="number" className="input" min={0} step={100} required value={plans.business.priceNgn} onChange={(e) => setPlan('business', { priceNgn: e.target.value })} /></Field>
+            <Field label="Branch limit"><input type="number" className="input" min={0} max={500} required value={plans.business.maxBranches} onChange={(e) => setPlan('business', { maxBranches: e.target.value })} /></Field>
+            <Field label="Commission (%)"><input type="number" className="input" min={0} max={50} step="0.1" required value={plans.business.commissionPct} onChange={(e) => setPlan('business', { commissionPct: e.target.value })} /></Field>
+            <Field label="Yearly discount (%)"><input type="number" className="input" min={0} max={50} step="0.5" required value={plans.business.yearlyDiscountPct} onChange={(e) => setPlan('business', { yearlyDiscountPct: e.target.value })} /></Field>
+          </div></fieldset>
+
+        <Alert kind="info">Prices and commission are always applied on the server. A commission rate is fixed on each order when it is placed, so changing it never alters orders that already exist. Lowering a limit never deletes anything.</Alert>
         <button className="btn-primary" disabled={busy === 'p'}>{busy === 'p' ? 'Saving…' : 'Save plans'}</button>
       </form>
     </div>

@@ -8,7 +8,7 @@ import { subColor } from './Users';
 export default function RestaurantDetail() {
   const { id } = useParams();
   const [d, setD] = useState(null); const [err, setErr] = useState(''); const [msg, setMsg] = useState(null);
-  const [modal, setModal] = useState(null); const [reason, setReason] = useState(''); const [days, setDays] = useState(30); const [busy, setBusy] = useState(false);
+  const [modal, setModal] = useState(null); const [reason, setReason] = useState(''); const [days, setDays] = useState(30); const [grantPlan, setGrantPlan] = useState('pro'); const [busy, setBusy] = useState(false);
   const load = useCallback(() => api.get(`/admin/restaurants/${id}`).then(setD).catch((e) => setErr(e.message)), [id]);
   useEffect(() => { load(); }, [load]);
   if (err) return <Alert>{err}</Alert>;
@@ -33,8 +33,8 @@ export default function RestaurantDetail() {
         <div className="flex flex-wrap gap-2">
           {r.status === 'active' ? <button className="btn-ghost !text-red-600" onClick={() => setModal('suspend')}>Suspend</button> : <button className="btn-primary" disabled={busy} onClick={() => run(() => api.post(`/admin/restaurants/${id}/reactivate`), 'Restaurant reactivated.')}>Reactivate</button>}
           <Link to={`/admin/menus/${id}`} className="btn-ghost">Manage menu</Link>
-          {isPro ? <button className="btn-ghost" onClick={() => setModal('revoke')}>Revoke Pro</button> : null}
-          <button className="btn-accent" onClick={() => setModal('grant')}>{isPro ? 'Extend Pro' : 'Grant Pro'}</button>
+          {isPro ? <button className="btn-ghost" onClick={() => setModal('revoke')}>Revoke plan</button> : null}
+          <button className="btn-accent" onClick={() => setModal('grant')}>{isPro ? 'Extend / change plan' : 'Grant a plan'}</button>
         </div>
       </div>
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
@@ -76,10 +76,11 @@ export default function RestaurantDetail() {
         </Modal>
       )}
       {(modal === 'grant' || modal === 'revoke') && (
-        <Modal title={modal === 'grant' ? 'Grant Pro access' : 'Revoke Pro access'} onClose={() => setModal(null)}>
-          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(() => api.post(`/admin/restaurants/${id}/plan`, modal === 'grant' ? { action: 'grant_pro', days: Number(days), reason } : { action: 'revoke_pro', reason }), modal === 'grant' ? 'Pro access granted.' : 'Pro access revoked.'); }}>
-            <Alert kind="info">{modal === 'grant' ? 'This is a manual grant. No payment is recorded, and it will not count as revenue.' : 'The restaurant goes back to the Free plan straight away. Its Pro-only data is kept but hidden.'}</Alert>
-            {modal === 'grant' && <Field label="Days of Pro"><input type="number" className="input" min={1} max={365} required value={days} onChange={(e) => setDays(e.target.value)} /></Field>}
+        <Modal title={modal === 'grant' ? 'Grant plan access' : 'Revoke paid plan'} onClose={() => setModal(null)}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(() => api.post(`/admin/restaurants/${id}/plan`, modal === 'grant' ? { action: grantPlan === 'business' ? 'grant_business' : 'grant_pro', days: Number(days), reason } : { action: 'revoke_pro', reason }), modal === 'grant' ? 'Plan access granted.' : 'Pro access revoked.'); }}>
+            <Alert kind="info">{modal === 'grant' ? 'This is a manual grant. No payment is recorded, and it will not count as revenue.' : 'The restaurant goes back to the Free plan straight away (5% commission applies to new orders). Its paid-plan data is kept but hidden.'}</Alert>
+            {modal === 'grant' && <Field label="Plan"><select className="input" value={grantPlan} onChange={(e) => setGrantPlan(e.target.value)}><option value="pro">Pro</option><option value="business">Business / Multi-branch</option></select></Field>}
+            {modal === 'grant' && <Field label="Days"><input type="number" className="input" min={1} max={365} required value={days} onChange={(e) => setDays(e.target.value)} /></Field>}
             <Field label="Reason (kept in the audit log)"><textarea className="input" rows={2} required minLength={3} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
             <button className="btn-primary w-full" disabled={busy}>{busy ? 'Saving…' : 'Confirm'}</button>
           </form>
