@@ -59,7 +59,8 @@ export default function Track() {
       <div className="py-4"><Logo /></div>
       <InstallBanner id={`track:${o.restaurantSlug || 'x'}`} name={o.restaurant} text="Add to your home screen to follow your order and reorder fast." className="mb-3" />
       <div className="card space-y-5 p-6">
-        <div><div className="text-xs text-ink-500">{o.restaurant}</div><div className="font-display text-2xl font-bold">{o.reference}</div></div>
+        <div><div className="text-xs text-ink-500">{o.restaurant}{o.branch ? ` · ${o.branch}` : ''}</div><div className="font-display text-2xl font-bold">{o.reference}</div></div>
+        {o.isScheduled && <div className="rounded-2xl bg-violet-50 p-3 text-sm text-violet-800">⏰ <b>Scheduled for {o.scheduledLabel}.</b> The restaurant will prepare it for that time.</div>}
         <div className="flex flex-wrap gap-2"><Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge><Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge></div>
         {o.status !== 'cancelled' && <div className="flex items-center">{FLOW.map((s, i) => <div key={s} className="flex flex-1 items-center"><div className={`h-3 w-3 rounded-full ${i <= idx ? 'bg-brand-500' : 'bg-ink-300'}`} />{i < FLOW.length - 1 && <div className={`h-0.5 flex-1 ${i < idx ? 'bg-brand-500' : 'bg-ink-300'}`} />}</div>)}</div>}
         <div className="rounded-2xl bg-mint-50 p-4 text-sm">{o.items.map((i, k) => <div key={k} className="py-0.5"><div className="flex justify-between"><span>{i.quantity} × {i.name}{i.size ? ` (${i.size})` : ''}</span><span>{naira(i.price * i.quantity)}</span></div>{(i.addons || []).length > 0 && <div className="pl-4 text-xs text-ink-500">+ {i.addons.map((a) => a.name).join(', ')}</div>}</div>)}

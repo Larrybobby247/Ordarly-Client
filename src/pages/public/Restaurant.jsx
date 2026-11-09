@@ -8,6 +8,8 @@ import { Modal } from '../../components/adminKit';
 import PlaceSearch from '../../components/PlaceSearch';
 import InstallBanner from '../../components/InstallBanner';
 import { brandAsApp } from '../../lib/pwa';
+import { BranchPicker, BranchSwitchModal } from './BranchUI';
+import { SchedulePicker } from './ScheduleUI';
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()));
 const lineKey = (mealId, addonIds, sizeId = '') => [mealId, sizeId, ...[...addonIds].sort()].join('|');
@@ -32,8 +34,17 @@ export default function Restaurant({ domain }) {
   const [cart, setCart] = useState(() => { try { const c = JSON.parse(localStorage.getItem('cart2:' + key) || '[]'); return Array.isArray(c) ? c : []; } catch { return []; } });
   const [cat, setCat] = useState(''); const [open, setOpen] = useState(false); const [step, setStep] = useState('cart');
   const [sheet, setSheet] = useState(null); const [report, setReport] = useState(false); const [contact, setContact] = useState(false); const [search, setSearch] = useState('');
+  // Multi-branch restaurants: the chosen branch is remembered on this device. Single-branch and non-Business restaurants never use this.
+  const [branchId, setBranchId] = useState(() => { try { return localStorage.getItem('branch:' + key) || ''; } catch { return ''; } });
+  const [switching, setSwitching] = useState(false);
+  const chooseBranch = (id) => { setBranchId(id); try { id ? localStorage.setItem('branch:' + key, id) : localStorage.removeItem('branch:' + key); } catch { /* storage unavailable */ } };
 
-  useEffect(() => { setD(null); setErr(''); api.get(domain ? `/public/by-domain/${encodeURIComponent(domain)}` : `/public/r/${slug}`, { ttl: 30000 }).then(setD).catch((e) => setErr(e.message)); }, [domain, slug]);
+  useEffect(() => {
+    setD(null); setErr('');
+    const base = domain ? `/public/by-domain/${encodeURIComponent(domain)}` : `/public/r/${slug}`;
+    api.get(`${base}${branchId ? `?branch=${encodeURIComponent(branchId)}` : ''}`, { ttl: 30000 }).then(setD)
+      .catch((e) => { if (e.data?.code === 'BRANCH_NOT_FOUND' && branchId) chooseBranch(''); else setErr(e.message); }); // a saved branch that no longer exists: ask again
+  }, [domain, slug, branchId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { try { localStorage.setItem('cart2:' + key, JSON.stringify(cart)); } catch { /* storage unavailable */ } }, [cart, key]);
 
   // Make this page installable as the restaurant's own app (its name + logo on the phone's home screen).
@@ -68,7 +79,9 @@ export default function Restaurant({ domain }) {
   if (err) return <div className="grid min-h-screen place-items-center p-6 text-center"><div><h1 className="font-display text-3xl font-bold">Restaurant not found</h1><p className="mt-2 text-ink-500">{err}</p>{!domain && <a href="/" className="btn-primary mt-5">Go to Ordarly</a>}</div></div>;
   // PERF/UX (changed): a page-shaped skeleton instead of a lone spinner, so the layout is already there while the menu loads.
   if (!d) return <RestaurantSkeleton />;
-  const r = d.restaurant; const accent = r.accent || '#16a34a'; const isPro = r.plan === 'pro' && d.checkout;
+  const r = d.restaurant; const accent = r.accent || '#16a34a'; const isPro = !!d.checkout; // online checkout is open to every plan once a payment method works (name kept for the existing code below)
+  const canSchedule = !!d.checkout?.scheduling?.enabled; const canOrderNow = r.isOpen || canSchedule;
+  if (d.branchRequired) return <BranchPicker d={d} onPick={chooseBranch} />;
   const needle = search.trim().toLowerCase();
   const shown = meals.filter((m) => (!cat || m.category === cat) && (!needle || [m.name, m.description, ...(m.tags || []), ...(m.addons || []).map((a) => a.name)].some((t) => String(t || '').toLowerCase().includes(needle))));
 
@@ -90,6 +103,9 @@ export default function Restaurant({ domain }) {
               <span className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${r.isOpen ? 'bg-brand-50 text-brand-700' : 'bg-red-50 text-red-600'}`}><span className={`h-1.5 w-1.5 rounded-full ${r.isOpen ? 'bg-brand-500' : 'bg-red-500'}`} />{r.isOpen ? 'Open now' : 'Closed'}</span>
             </div>
           </div>
+          {d.branches.length > 1 && d.branch && (
+            <button type="button" onClick={() => setSwitching(true)} className="flex w-full items-center justify-between gap-2 rounded-2xl border border-brand-500/30 bg-brand-50 px-3 py-2.5 text-left text-sm" aria-label={`Ordering from ${d.branch.name}. Change branch`}>
+              <span className="min-w-0"><span className="block text-[11px] font-semibold uppercase tracking-wide text-brand-700">Ordering from</span><b className="block truncate">{d.branch.name}</b></span><span className="shrink-0 text-xs font-semibold text-brand-700">Change ▾</span></button>)}
           {r.description && <p className="text-sm leading-relaxed text-ink-700">{r.description}</p>}
           {(r.address || r.phone) && (
             <ul className="divide-y divide-black/5 rounded-2xl bg-mint-50 text-sm">
@@ -106,7 +122,7 @@ export default function Restaurant({ domain }) {
           <input type="search" aria-label="Search meals" className="input !rounded-full !pl-10" placeholder="Search meals, e.g. jollof, turkey…" value={search} onChange={(e) => setSearch(e.target.value)} />
           <svg className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-500" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
         </div>
-        {!r.isOpen && <div className="mt-4"><Alert kind="info">This restaurant is not accepting orders right now. You can browse the menu.</Alert></div>}
+        {!r.isOpen && <div className="mt-4"><Alert kind="info">{canSchedule ? 'Closed right now. You can still schedule an order for later.' : 'This restaurant is not accepting orders right now. You can browse the menu.'}</Alert></div>}
 
         {d.categories.length > 0 && (
           <div className="no-scrollbar sticky top-0 z-10 -mx-4 mt-4 flex gap-2 overflow-x-auto bg-mint-50/90 px-4 py-3 backdrop-blur">
@@ -142,8 +158,9 @@ export default function Restaurant({ domain }) {
         <div className="fixed inset-x-0 bottom-0 z-20 p-4"><button onClick={() => { setStep('cart'); setOpen(true); }} className="btn-dark mx-auto flex w-full max-w-lg justify-between !rounded-3xl !py-4"><span>View cart · {count} item{count > 1 && 's'}</span><span>{naira(subtotal)}</span></button></div>
       )}
       {contact && <ContactModal r={r} onClose={() => setContact(false)} />}
-      {sheet && <ItemSheet m={sheet} canOrder={r.isOpen} onClose={() => setSheet(null)} onAdd={(ids, qty, sizeId) => { addLine(sheet._id, ids, qty, sizeId); setSheet(null); }} />}
-      {open && <CartSheet {...{ d, r, isPro, lines, subtotal, setQty, step, setStep, setCart, hasInvalid, close: () => setOpen(false), slug: r.slug }} />}
+      {switching && <BranchSwitchModal d={d} cart={cart} lines={lines} onClose={() => setSwitching(false)} onSwitch={(id, removeKeys) => { if (removeKeys.length) setCart((c) => c.filter((l) => !removeKeys.includes(l.key))); chooseBranch(id); setSwitching(false); }} />}
+      {sheet && <ItemSheet m={sheet} canOrder={canOrderNow} onClose={() => setSheet(null)} onAdd={(ids, qty, sizeId) => { addLine(sheet._id, ids, qty, sizeId); setSheet(null); }} />}
+      {open && <CartSheet {...{ d, r, isPro, canSchedule, branchId: d.branch?._id, lines, subtotal, setQty, step, setStep, setCart, hasInvalid, close: () => setOpen(false), slug: r.slug }} />}
       {report && <ReportModal onClose={() => setReport(false)} source="restaurant_page" restaurantSlug={r.slug} defaultKind="complaint" />}
       <p className="mt-10 text-center text-xs text-ink-500">
         Powered by <a href="/" className="font-semibold text-brand-600">Ordarly</a> · <button className="underline" onClick={() => setReport(true)}>Report a problem</button>
@@ -237,14 +254,14 @@ function ContactModal({ r, onClose }) {
 }
 
 // Delivery address: search -> pick -> we price it by distance from the restaurant (server-side). House name etc. is a separate field.
-function DeliveryPlace({ slug, rules, quote, setQuote }) {
+function DeliveryPlace({ slug, rules, quote, setQuote, branchId }) {
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
-  const search = useMemo(() => (input, token) => api.post(`/public/r/${slug}/places/autocomplete`, { input, sessionToken: token }).then((r) => r.suggestions), [slug]);
+  const search = useMemo(() => (input, token) => api.post(`/public/r/${slug}/places/autocomplete`, { input, sessionToken: token, ...(branchId ? { branchId } : {}) }).then((r) => r.suggestions), [slug, branchId]);
   const pick = async (s, token) => {
     setErr(''); setQuote(null);
     if (!s) return;
     setBusy(true);
-    try { const q = await api.post(`/public/r/${slug}/delivery-quote`, { placeId: s.placeId, sessionToken: token }); setQuote({ ...q, placeId: s.placeId }); }
+    try { const q = await api.post(`/public/r/${slug}/delivery-quote`, { placeId: s.placeId, sessionToken: token, ...(branchId ? { branchId } : {}) }); setQuote({ ...q, placeId: s.placeId }); }
     catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   return (
@@ -259,12 +276,15 @@ function DeliveryPlace({ slug, rules, quote, setQuote }) {
   );
 }
 
-function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCart, hasInvalid, close, slug }) {
+function CartSheet({ d, r, isPro, canSchedule, branchId, lines, subtotal, setQty, step, setStep, setCart, hasInvalid, close, slug }) {
   const co = d.checkout;
   const [f, setF] = useState({ customerName: '', customerEmail: '', customerPhone: '', notes: '', fulfillment: co?.fulfillment.pickup ? 'pickup' : co?.fulfillment.delivery ? 'delivery' : 'dine_in', deliveryPlaceId: '', deliveryAddress: '', tableNumber: '', paymentMethod: '', confirmed: false });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [done, setDone] = useState(null); const [idem] = useState(uid);
   const cartPayload = lines.filter((l) => l.valid).map((l) => ({ mealId: l.mealId, quantity: l.quantity, ...(l.size ? { sizeId: l.size._id } : {}), ...(l.addonIds.length ? { addonIds: l.addonIds } : {}) }));
   const [quote, setQuote] = useState(null);
+  // ASAP vs scheduled. Closed restaurants can only take scheduled orders.
+  const [sched, setSched] = useState({ when: r.isOpen || !canSchedule ? 'asap' : 'later', start: '', label: '' });
+  const waitingForSlot = canSchedule && sched.when === 'later' && !sched.start;
   const fee = f.fulfillment === 'delivery' && quote ? quote.fee : 0;
   const pms = co ? [co.payments.paystack && ['paystack', 'Pay online (card / transfer) — recommended'], co.payments.bankTransfer && ['bank_transfer', 'Bank transfer'], co.payments.pod && f.fulfillment === 'delivery' && ['pod', 'Pay on delivery']].filter(Boolean) : [];
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -273,7 +293,7 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
   const whatsapp = async () => {
     setBusy(true); setErr('');
     try {
-      const res = await api.post(`/public/r/${slug}/whatsapp-order`, { cart: cartPayload, customerName: f.customerName || undefined, customerPhone: f.customerPhone || undefined, notes: f.notes || undefined, idempotencyKey: idem });
+      const res = await api.post(`/public/r/${slug}/whatsapp-order`, { cart: cartPayload, customerName: f.customerName || undefined, customerPhone: f.customerPhone || undefined, notes: f.notes || undefined, idempotencyKey: idem, ...(branchId ? { branchId } : {}) });
       setDone({ type: 'wa', ...res }); setCart([]);
       window.open(res.whatsappUrl, '_blank', 'noopener');
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
@@ -281,11 +301,14 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
   const checkout = async () => {
     setBusy(true); setErr('');
     try {
-      const body = { cart: cartPayload, ...f, deliveryPlaceId: f.fulfillment === 'delivery' ? quote?.placeId : undefined, idempotencyKey: idem };
+      const body = { cart: cartPayload, ...f, ...(branchId ? { branchId } : {}), ...(sched.when === 'later' ? { scheduledFor: sched.start } : {}), deliveryPlaceId: f.fulfillment === 'delivery' ? quote?.placeId : undefined, idempotencyKey: idem };
       const res = await api.post(`/public/r/${slug}/checkout`, body);
       setDone({ type: 'pro', ...res }); setCart([]);
       if (res.paymentUrl) { window.location.href = res.paymentUrl; return; } // straight to the Paystack page, no extra tap
-    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+    } catch (e) {
+      setErr(e.message);
+      if (e.data?.code === 'SLOT_UNAVAILABLE') setSched({ when: 'later', start: '', label: '', refresh: Date.now() }); // the slot was taken: reload times and ask again
+    } finally { setBusy(false); }
   };
   const needArea = f.fulfillment === 'delivery' && !quote;
 
@@ -300,7 +323,7 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
             <a href={done.whatsappUrl} target="_blank" rel="noreferrer" className="btn-primary w-full">Open WhatsApp again</a></div>
         )}
         {done?.type === 'pro' && (
-          <div className="space-y-4"><Alert kind="ok">Order <b>{done.reference}</b> placed. Total {naira(done.total)}.</Alert>
+          <div className="space-y-4"><Alert kind="ok">Order <b>{done.reference}</b> placed. Total {naira(done.total)}.{done.scheduledLabel && <> Scheduled for <b>{done.scheduledLabel}</b>.</>}</Alert>
             {done.next === 'upload_proof' && <Alert kind="info">Transfer {naira(done.total)} using the details shown at checkout, then open your tracking page to upload your payment proof. Your order stays unpaid until {r.name} confirms the money arrived.</Alert>}
             {done.next === 'pay_online' && (done.paymentUrl ? <Alert kind="info">Taking you to Paystack to pay… <a className="font-semibold underline" href={done.paymentUrl}>Tap here if nothing happens</a>.</Alert> : <Alert kind="info">Open your tracking page and tap <b>Pay now</b> to complete payment securely with Paystack.</Alert>)}
             {done.paymentMethod === 'pod' && <Alert kind="info">Pay the rider/restaurant when your order arrives.</Alert>}
@@ -327,7 +350,7 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
               <button disabled={busy || hasInvalid || !cartPayload.length || !r.isOpen || !r.whatsapp} onClick={whatsapp} className="btn-primary w-full !bg-[#25D366] !py-3.5">{busy ? 'Saving order…' : 'Order on WhatsApp'}</button>
               {!r.whatsapp && <p className="text-xs text-red-500">This restaurant has not set up WhatsApp yet.</p>}
             </>)}
-            {isPro && <button disabled={hasInvalid || !cartPayload.length || !r.isOpen} onClick={() => setStep('checkout')} className="btn-accent w-full !py-3.5">Continue to checkout</button>}
+            {isPro && <button disabled={hasInvalid || !cartPayload.length || !(r.isOpen || canSchedule)} onClick={() => setStep('checkout')} className="btn-accent w-full !py-3.5">Continue to checkout</button>}
           </div></>)}
 
         {!done && step === 'checkout' && isPro && (
@@ -338,17 +361,19 @@ function CartSheet({ d, r, isPro, lines, subtotal, setQty, step, setStep, setCar
             <div><div className="label">How would you like your order?</div><div className="flex flex-wrap gap-2">
               {[['delivery', 'Home delivery', co.fulfillment.delivery], ['pickup', 'Pickup', co.fulfillment.pickup], ['dine_in', 'Eat at the restaurant', co.fulfillment.dineIn]].filter(([, , on]) => on).map(([k, l]) => <button type="button" key={k} onClick={() => setF({ ...f, fulfillment: k, paymentMethod: '' })} className={`chip !px-4 !py-2 ${f.fulfillment === k && '!border-brand-500 !bg-brand-50 !text-brand-700'}`}>{l}</button>)}</div></div>
             {f.fulfillment === 'delivery' && (<>
-              <DeliveryPlace slug={slug} rules={co.deliveryRules} quote={quote} setQuote={setQuote} />
+              <DeliveryPlace slug={slug} branchId={branchId} rules={co.deliveryRules} quote={quote} setQuote={setQuote} />
               <Field label="House / street details" hint="House name or number, street, nearest landmark. This does not change the delivery price."><textarea className="input" rows={2} required minLength={3} placeholder="e.g. Flat 3, Sunrise Court, 12 Adeola Odeku St, near the Shoprite" value={f.deliveryAddress} onChange={set('deliveryAddress')} /></Field></>)}
             {f.fulfillment === 'pickup' && <div className="rounded-2xl bg-mint-50 p-3 text-sm"><b>Pickup address:</b> {r.address}<br />{co.fulfillment.pickupInstructions}</div>}
             {f.fulfillment === 'dine_in' && co.fulfillment.askTableNumber && <Field label="Table number (optional)"><input className="input" value={f.tableNumber} onChange={set('tableNumber')} /></Field>}
+            {canSchedule && <SchedulePicker slug={slug} branchId={branchId} isOpen={r.isOpen} value={sched} onChange={setSched} />}
             <div><div className="label">Payment</div>
               {pms.length === 0 ? <Alert kind="info">No payment method is available for this option right now.</Alert> : <div className="space-y-2">{pms.map(([k, l]) => <label key={k} className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${f.paymentMethod === k ? 'border-tomato-500 bg-tomato-50' : 'border-ink-300'}`}><input type="radio" name="pm" required checked={f.paymentMethod === k} onChange={() => setF({ ...f, paymentMethod: k })} />{l}</label>)}</div>}
               {f.paymentMethod === 'bank_transfer' && co.bank && <div className="mt-2 rounded-2xl bg-mint-50 p-3 text-sm"><div className="font-semibold">Transfer to:</div>{co.bank.bankName} · {co.bank.accountName} · <b>{co.bank.accountNumber}</b><p className="mt-1 text-xs text-ink-500">Your order is only marked paid after the restaurant confirms the money arrived.</p></div>}</div>
             <Field label="Notes (optional)"><textarea rows={2} className="input" value={f.notes} onChange={set('notes')} /></Field>
             <div className="space-y-1 rounded-2xl bg-mint-50 p-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{naira(subtotal)}</span></div>{f.fulfillment === 'delivery' && <div className="flex justify-between"><span>Delivery{quote ? ` (${quote.distanceKm} km)` : ''}</span><span>{quote ? naira(fee) : '—'}</span></div>}<div className="flex justify-between text-base font-bold"><span>Total</span><span>{naira(subtotal + fee)}</span></div><p className="text-xs text-ink-500">Final amount is recalculated securely when you place the order.</p></div>
+            {sched.when === 'later' && sched.label && <div className="rounded-2xl bg-violet-50 p-3 text-sm font-semibold text-violet-800">⏰ Scheduled for {sched.label}{d.branch ? ` · ${d.branch.name}` : ''}</div>}
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={f.confirmed} onChange={(e) => setF({ ...f, confirmed: e.target.checked })} />I confirm my order and details are correct.</label>
-            <div className="flex gap-2"><button type="button" className="btn-ghost" onClick={() => setStep('cart')}>Back</button><button disabled={busy || !f.confirmed || !f.paymentMethod || needArea} className="btn-accent flex-1 !py-3">{busy ? 'Placing…' : needArea ? 'Search your address' : 'Place order'}</button></div>
+            <div className="flex gap-2"><button type="button" className="btn-ghost" onClick={() => setStep('cart')}>Back</button><button disabled={busy || !f.confirmed || !f.paymentMethod || needArea || waitingForSlot} className="btn-accent flex-1 !py-3">{busy ? 'Placing…' : needArea ? 'Search your address' : waitingForSlot ? 'Choose a time' : 'Place order'}</button></div>
           </form>
         )}
       </div>
