@@ -25,6 +25,10 @@ const Menu = lazy(() => import('./pages/dashboard/Menu'));
 const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Fulfillment = lazy(() => import('./pages/dashboard/Fulfillment'));
 const Messages = lazy(() => import('./pages/dashboard/Messages'));
+const Earnings = lazy(() => import('./pages/dashboard/Earnings'));
+const Branches = lazy(() => import('./pages/dashboard/Branches'));
+const Staff = lazy(() => import('./pages/dashboard/Staff'));
+const AcceptInvite = lazy(() => import('./pages/auth/AcceptInvite'));
 const Reports = lazy(() => import('./pages/dashboard/Reports'));
 const pro = () => import('./pages/dashboard/ProPages');
 const Payments = named(pro, 'Payments');
@@ -41,6 +45,7 @@ const AdminUserDetail = lazy(() => import('./pages/admin/UserDetail'));
 const AdminRestaurants = lazy(() => import('./pages/admin/Restaurants'));
 const AdminRestaurantDetail = lazy(() => import('./pages/admin/RestaurantDetail'));
 const AdminMenus = lazy(() => import('./pages/admin/Menus'));
+const AdminRevenue = lazy(() => import('./pages/admin/Revenue'));
 const AdminSubscriptions = lazy(() => import('./pages/admin/Subscriptions'));
 const AdminTransactions = lazy(() => import('./pages/admin/Transactions'));
 const AdminComplaints = lazy(() => import('./pages/admin/Complaints'));
@@ -90,11 +95,12 @@ function PlatformRoutes() {
         <Route path="terms" element={<Terms />} /><Route path="privacy" element={<Privacy />} />
       </Route>
       <Route path="login" element={<Login />} /><Route path="register" element={<Register />} />
-      <Route path="verify-email" element={<VerifyEmail />} /><Route path="forgot-password" element={<Forgot />} /><Route path="reset-password" element={<Reset />} />
+      <Route path="accept-invite" element={<AcceptInvite />} /><Route path="verify-email" element={<VerifyEmail />} /><Route path="forgot-password" element={<Forgot />} /><Route path="reset-password" element={<Reset />} />
       <Route path="dashboard" element={<DashboardLayout />}>
         <Route index element={<Overview />} /><Route path="orders" element={<Orders />} /><Route path="menu" element={<Menu />} />
         <Route path="messages" element={<Messages />} /><Route path="reports" element={<Reports />} />
         <Route path="fulfillment" element={<Fulfillment />} /><Route path="payments" element={<Payments />} /><Route path="qr" element={<QR />} />
+        <Route path="earnings" element={<Earnings />} /><Route path="branches" element={<Branches />} /><Route path="staff" element={<Staff />} />
         <Route path="analytics" element={<Analytics />} /><Route path="subscription" element={<Subscription />} /><Route path="settings" element={<Settings />} />
       </Route>
       <Route path="admin" element={<AdminLayout />}>
@@ -102,6 +108,7 @@ function PlatformRoutes() {
         <Route path="users" element={<AdminUsers />} /><Route path="users/:id" element={<AdminUserDetail />} />
         <Route path="restaurants" element={<AdminRestaurants />} /><Route path="restaurants/:id" element={<AdminRestaurantDetail />} />
         <Route path="menus" element={<AdminMenus />} /><Route path="menus/:id" element={<AdminMenus />} />
+        <Route path="revenue" element={<AdminRevenue />} />
         <Route path="subscriptions" element={<AdminSubscriptions />} /><Route path="transactions" element={<AdminTransactions />} />
         <Route path="complaints" element={<AdminComplaints />} /><Route path="complaints/:id" element={<AdminComplaintDetail />} />
         <Route path="analytics" element={<AdminAnalytics />} /><Route path="emails" element={<AdminEmails />} />
