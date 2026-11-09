@@ -33,9 +33,23 @@ function PhoneMenu() {
 }
 
 const faqs = [
-  ['Is the Free plan really free?', 'Yes. Up to 10 active meals and unlimited WhatsApp order requests, no card needed.'],
-  ['Do my customers need an account?', 'Never. They open your link, pick meals and order.'],
-  ['Where does the money go?', 'Food payments go to your own Paystack arrangement or bank account. Ordarly never holds or redistributes your sales.'],
+  ['Is the Free plan really free?', 'Yes: ₦0 a month and no card needed. You get your own ordering website with online payment, delivery, pickup, tracking and analytics. Ordarly keeps 5% of the meal subtotal of each completed order. Delivery fees are never charged commission.'],
+  ['How do I stop paying commission?', 'Upgrade to Pro for a flat monthly price and 0% Ordarly commission, plus a custom domain, bank-account payments and pay on delivery.'],
+  ['Can I run several branches?', 'Yes, on the Business plan: one dashboard, a menu and prices per branch if you need them, branch managers with their own access, and combined reports.'],
+  ['Do my customers need an account?', 'Never. They open your link, pick a branch if you have several, choose ASAP or a later time, and order.'],
+];
+
+const HIGHLIGHTS = [
+  ['🌐', 'Your own ordering website', 'A branded page at your-name.ordarly.com.ng, or your own domain on Pro.'],
+  ['📋', 'One dashboard for orders', 'Accept, prepare and complete every order in a tap.'],
+  ['💳', 'Online orders & payments', 'Customers pay with Paystack and you see exactly what you earned.'],
+  ['🍽', 'Menus, add-ons & meal sizes', 'Extras with prices, and 10″ / 12″ / 14″ style size pricing.'],
+  ['🛵', 'Delivery & pickup', 'Distance-priced delivery, pickup and dine-in.'],
+  ['💰', 'Earnings after commission', 'See meal sales, delivery fees, commission and net earnings by date.'],
+  ['🏬', 'Multiple branches, one login', 'Separate menus, hours and delivery per branch with combined reports.'],
+  ['👥', 'Managers & staff', 'Invite branch managers by email with role-based access.'],
+  ['⏰', 'ASAP & scheduled orders', 'Let customers book a date and time that fits your opening hours.'],
+  ['📈', 'Sales & performance', 'Know your popular meals, busy days and branch results.'],
 ];
 
 export default function Home() {
@@ -47,14 +61,14 @@ export default function Home() {
         <div>
           <span className="eyebrow">Online ordering for Nigerian restaurants</span>
           <h1 className="mt-3 font-display text-4xl font-bold leading-[1.05] md:text-6xl">
-            A simpler way to <span className="text-brand-500">take orders</span> online.
+            Your restaurant's own <span className="text-brand-500">ordering website</span>, ready today.
           </h1>
-          <p className="mt-5 max-w-lg text-ink-500">Give your restaurant its own ordering page in minutes. Start free with WhatsApp orders, then add checkout, delivery, payments and tracking with Pro.</p>
+          <p className="mt-5 max-w-lg text-ink-500">Take orders and online payments, manage everything from one dashboard, track what you earn after commission, and grow to multiple branches when you are ready. Start free.</p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <Link to="/register" className="btn-primary px-6 py-3">Create your page — free</Link>
+            <Link to="/register" className="btn-primary px-6 py-3">Get Started Free</Link>
             <Link to="/how-it-works" className="btn-ghost px-6 py-3">See how it works</Link>
           </div>
-          <div className="mt-6 flex flex-wrap gap-2">{['WhatsApp orders', 'Paystack payments', 'Distance-based delivery', 'Meal add-ons', 'Order tracking', 'QR codes'].map((t) => <span key={t} className="chip">{t}</span>)}</div>
+          <div className="mt-6 flex flex-wrap gap-2">{['Online payments', 'Distance-based delivery', 'Meal sizes & add-ons', 'Scheduled orders', 'Multi-branch', 'Earnings reports'].map((t) => <span key={t} className="chip">{t}</span>)}</div>
         </div>
         <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-brand-100 via-mint-100 to-amber-50 p-8">
           <PhoneMenu />
@@ -69,9 +83,9 @@ export default function Home() {
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           <div className="rounded-4xl bg-brand-500 p-6 text-white md:col-span-2">
             <h3 className="text-lg font-bold">Your own page, your own link</h3>
-            <p className="mt-1 max-w-md text-sm text-white/80">Share it on WhatsApp, Instagram or a printed QR code. Pro restaurants can even use their own domain.</p>
+            <p className="mt-1 max-w-md text-sm text-white/80">Share it on WhatsApp, Instagram or a printed QR code. Pro restaurants can use their own domain.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {[['ordarly.ng/mama-put', 'Public link'], ['order.mamaput.com', 'Custom domain (Pro)'], ['QR code', 'Print-ready (Pro)']].map(([a, b]) => (
+              {[['mama-put.ordarly.com.ng', 'Your own web address'], ['order.mamaput.com', 'Custom domain (Pro)'], ['QR code', 'Print-ready (Pro)']].map(([a, b]) => (
                 <div key={a} className="rounded-2xl bg-white p-4 text-ink-900"><div className="text-xs text-ink-500">{b}</div><div className="mt-1 break-all text-sm font-bold">{a}</div></div>
               ))}
             </div>
@@ -86,6 +100,19 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Everything Ordarly does */}
+      <section className="mx-auto mt-20 max-w-6xl px-5">
+        <span className="eyebrow">More than a menu page</span>
+        <h2 className="mt-2 max-w-2xl font-display text-3xl font-bold md:text-4xl">Run the whole business, <span className="text-brand-500">not just the menu.</span></h2>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {HIGHLIGHTS.map(([i, t, d]) => <div key={t} className="card p-5"><div className="text-2xl" aria-hidden="true">{i}</div><h3 className="mt-2 text-sm font-bold">{t}</h3><p className="mt-1 text-xs text-ink-500">{d}</p></div>)}
+        </div>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          <div className="rounded-4xl bg-violet-50 p-6"><h3 className="font-bold">Multiple branches, one dashboard</h3><p className="mt-1 text-sm text-ink-700">Customers choose a branch first and see that branch's menu, prices, hours and delivery. You see every branch together, or one at a time. Invite branch managers who only see their own branch.</p><Link to="/contact" className="mt-3 inline-block text-sm font-semibold text-violet-700 underline">Explore the Business plan</Link></div>
+          <div className="rounded-4xl bg-amber-50 p-6"><h3 className="font-bold">Orders for now or for later</h3><p className="mt-1 text-sm text-ink-700">Customers can order ASAP or pick a date and time slot within your opening hours. You set the notice, the booking window and the capacity per slot, and get a reminder before each scheduled order.</p></div>
+        </div>
+      </section>
+
       {/* Split section */}
       <section className="mx-auto mt-20 grid max-w-6xl items-center gap-10 px-5 md:grid-cols-2">
         <div className="card p-6">
@@ -97,7 +124,7 @@ export default function Home() {
         <div>
           <span className="eyebrow">Built for busy kitchens</span>
           <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">Not harder. Just <span className="text-brand-500">smarter</span> ordering.</h2>
-          <p className="mt-3 text-ink-500">See every order, update its status in a tap, and let Pro customers follow along with a secure tracking link, no accounts and no phone calls asking “is it ready?”.</p>
+          <p className="mt-3 text-ink-500">See every order, update its status in a tap, and let customers follow along with a secure tracking link, no accounts and no phone calls asking “is it ready?”.</p>
           <div className="mt-6 space-y-3">
             {faqs.map(([q, a], i) => (
               <button key={q} onClick={() => setOpen(open === i ? -1 : i)} className="block w-full rounded-3xl bg-night p-4 text-left text-white">
@@ -114,7 +141,7 @@ export default function Home() {
         <div className="mx-auto max-w-3xl px-5 text-center">
           <span className="eyebrow">Pricing</span>
           <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">Start free. <span className="text-brand-500">Upgrade when you're ready.</span></h2>
-          <p className="mx-auto mb-8 mt-3 max-w-xl text-ink-500">No commission on your food sales, ever. Just a flat monthly price for Pro.</p>
+          <p className="mx-auto mb-8 mt-3 max-w-2xl text-ink-500">Free takes 5% of the meal subtotal on completed orders (never on delivery fees). Pro is a flat monthly price with 0% commission. Business adds multiple branches and staff.</p>
         </div>
         <PricingPlans />
         <p className="mt-4 text-center text-xs text-ink-500"><Link to="/pricing" className="underline">Full pricing details</Link></p>
@@ -124,8 +151,8 @@ export default function Home() {
       <section className="mx-auto mt-24 max-w-4xl px-5 text-center">
         <span className="eyebrow">Ready to start?</span>
         <h2 className="mt-2 font-display text-3xl font-bold md:text-5xl">Your first orders could be <span className="text-tomato-500">minutes away.</span></h2>
-        <Link to="/register" className="btn-primary mt-7 px-8 py-3.5">Create your free page</Link>
-        <p className="mt-3 text-xs text-ink-500">No card required. Try Pro free for 14 days anytime.</p>
+        <Link to="/register" className="btn-primary mt-7 px-8 py-3.5">Get Started Free</Link>
+        <p className="mt-3 text-xs text-ink-500">No card required. Upgrade to Pro or Business whenever you are ready.</p>
       </section>
     </main>
   );

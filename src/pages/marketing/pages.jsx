@@ -17,11 +17,11 @@ const Hero = ({ eyebrow, title, sub }) => (
 export function HowItWorks() {
   const steps = [
     ['1', 'Create your account', 'Register your restaurant, verify your email and pick your page link.'],
-    ['2', 'Build your menu', 'Add categories, meals with photos and prices, and add-ons like extra meat or drinks. Free includes 10 active meals.'],
-    ['3', 'Share your link', 'Post it on WhatsApp status, Instagram, or print a QR code (Pro).'],
-    ['4', 'Receive orders', 'Free: customers send their cart to your WhatsApp. Pro: full checkout with distance-priced delivery, pickup or dine-in.'],
-    ['5', 'Get paid your way', 'Pro: Paystack online payments, bank transfer with proof review, or pay on delivery.'],
-    ['6', 'Keep customers updated', 'Pro customers get a secure tracking link and email updates, with no account needed.'],
+    ['2', 'Build your menu', 'Add categories, meals with photos and prices, sizes (like 10″, 12″, 14″) and add-ons like extra meat or drinks.'],
+    ['3', 'Share your link', 'Post it on WhatsApp status or Instagram, or print a QR code (Pro). Every restaurant gets a web address like your-name.ordarly.com.ng.'],
+    ['4', 'Receive orders', 'Customers check out online with distance-priced delivery, pickup or dine-in, ordering ASAP or for a later time slot. Several branches? They choose one first.'],
+    ['5', 'Get paid your way', 'Online payments with Paystack on every plan. Pro adds bank-account payments and pay on delivery. See your earnings after commission in your dashboard.'],
+    ['6', 'Keep customers updated', 'Customers get a secure tracking link and email updates, with no account needed.'],
   ];
   return (
     <main>
@@ -39,9 +39,9 @@ export function HowItWorks() {
 export function Pricing() {
   return (
     <main>
-      <Hero eyebrow="Pricing" title="Simple, honest pricing" sub="Start free. Upgrade only when your restaurant is ready for online checkout." />
+      <Hero eyebrow="Pricing" title="Simple, honest pricing" sub="Start free with 5% commission on meals, go Pro for 0% commission, or choose Business for multiple branches." />
       <PricingPlans />
-      <p className="mx-auto mt-6 max-w-2xl px-5 text-center text-xs text-ink-500">Prices may be adjusted by Ordarly with notice. Payment-processing fees on food orders are charged by the payment provider and borne by the restaurant. Ordarly takes no commission on food orders.</p>
+      <p className="mx-auto mt-6 max-w-2xl px-5 text-center text-xs text-ink-500">Prices may be adjusted by Ordarly with notice. Commission applies to the meal subtotal only, never to delivery fees, and only to completed online-paid orders. Payment-processing fees are charged by the payment provider and borne by the restaurant. Business plan prices and branch limits are set by Ordarly and shown when available.</p>
     </main>
   );
 }
@@ -71,7 +71,7 @@ export function About() {
         </section>
         <section>
           <h2 className="font-display text-2xl font-bold text-ink-900">How we run things</h2>
-          <p className="mt-2">We charge a flat monthly subscription for Pro and take <b>no commission</b> on your food sales. Your customers' payments go to your own account arrangement, and our subscription revenue is tracked completely separately. Your customers' personal details are shared only with the restaurant they order from. If something goes wrong, you can message our team from your dashboard and see the status of your report.</p>
+          <p className="mt-2">Free restaurants pay <b>5% commission on the meal subtotal</b> of completed online orders (never on delivery fees). Pro and Business pay a flat monthly subscription and <b>no commission</b>. Customer payments go through your own Paystack arrangement, and your dashboard shows exactly what was deducted. Your customers' personal details are shared only with the restaurant they order from. If something goes wrong, you can message our team from your dashboard and see the status of your report.</p>
         </section>
         <section className="rounded-3xl bg-night p-6 text-white">
           <h2 className="font-display text-xl font-bold">Questions? Talk to a person.</h2>
@@ -84,21 +84,25 @@ export function About() {
 }
 
 const FAQS = [
-  ['What is the difference between Free and Pro?', 'Free gives you a menu page (10 active meals), add-ons, a customer messages inbox and WhatsApp orders. Pro adds checkout, Paystack and bank-transfer payments, pay on delivery, distance-priced delivery, pickup, dine-in, order tracking, QR codes, a custom domain and analytics.'],
-  ['How much does Pro cost?', 'Pro is ₦7,500 per month, with a 14-day free trial you can start once from your dashboard. There is no commission on your food sales.'],
+  ['What is the difference between Free, Pro and Business?', 'Free includes your own ordering website, menu with add-ons and sizes, online payment, delivery, pickup and dine-in, tracking, WhatsApp notifications, analytics and scheduled orders, with 5% commission on the meal subtotal. Pro removes the commission and adds a custom domain, bank-account payments and pay on delivery. Business adds multiple branches, a central dashboard, staff invitations with permissions, branch-specific analytics and combined reports.'],
+  ['How is commission calculated?', 'Only on the meal subtotal of a completed order that was paid online on the Free plan: 5%. Delivery fees never attract commission. Example: meals ₦20,000 + delivery ₦2,000 = customer pays ₦22,000; commission is ₦1,000; you receive ₦21,000 before any separate payment-gateway fee. Cancelled and fully refunded orders pay no commission, and partial refunds reduce it proportionally.'],
+  ['How much does Pro cost?', 'Pro is ₦7,500 per month (or less per month if you pay yearly), with 0% Ordarly commission.'],
+  ['How much is the Business plan?', 'The Business plan is configured by Ordarly (price and number of branches). Open the pricing page for the current details, or contact us.'],
   ['Do customers need to create an account?', 'No. Customers order without registering.'],
-  ['How does delivery pricing work?', 'You set your restaurant\'s location and four numbers: a base fee, the base distance it covers, a price for every extra kilometre, and a maximum radius. When a customer searches their address, the distance is measured on the map and the fee is worked out automatically, rounded up to the next ₦100. Addresses beyond your maximum radius cannot order delivery. If you have not finished this setup, customers will not see a delivery option.'],
+  ['What is my restaurant\'s web address?', 'Every restaurant has its own address like your-name.ordarly.com.ng, and your classic ordarly link keeps working. Pro restaurants can also connect their own domain.'],
+  ['How does delivery pricing work?', 'You set your restaurant\'s (or each branch\'s) location and four numbers: a base fee, the base distance it covers, a price for every extra kilometre, and a maximum radius. When a customer searches their address, the distance is measured on the map and the fee is worked out automatically, rounded up to the next ₦100. Addresses beyond your maximum radius cannot order delivery.'],
   ['Is the delivery distance the road distance?', 'It is the straight-line distance on the map, which can be a little shorter than the road distance. Set your price per extra kilometre with that in mind.'],
-  ['Can customers add extras to a meal?', 'Yes. Add add-ons to any meal (for example extra turkey, beef or a drink) with their own prices. Customers pick them on the meal page before adding to the cart.'],
-  ['How do customers contact my restaurant?', 'Every restaurant page has a Contact button. Messages appear in the Messages tab of your dashboard and are emailed to you. You can reply from the dashboard and your reply is emailed to the customer.'],
-  ['What if I have a problem with the platform?', 'Use the Reports tab in your dashboard. Your report goes to our team and you can follow its progress (received, reviewed, in progress, resolved). You can also reach us on WhatsApp or by phone on the contact page.'],
-  ['How do WhatsApp orders work on Free?', 'The customer builds a cart, we save an order request in your dashboard, then open WhatsApp with the order pre-filled. The order is only confirmed once you accept it. Opening WhatsApp does not prove the customer sent the message.'],
-  ['Who receives the money from customers?', 'You do. Paystack payments are routed to your own approved merchant or subaccount arrangement. Bank transfers go straight to your account. Ordarly never collects and redistributes your sales.'],
-  ['How long does Paystack settlement take?', 'Settlement timing is set by Paystack and your account, so we cannot promise instant settlement. Your dashboard shows payment status, not guaranteed payout times.'],
-  ['How does bank transfer verification work?', 'Customers upload a screenshot, but a screenshot never marks an order paid. You check your own bank records and then accept or reject the proof.'],
-  ['What happens if my Pro plan expires?', 'You move to Free automatically. Nothing is deleted. If you have more than 10 active meals, they stay, but you cannot activate more until you are within the limit or renew. Delivery and checkout are hidden from customers until you renew.'],
-  ['Can I use my own domain?', 'Yes, on Pro. Add the domain in Settings, create the DNS records shown, and verify. If Pro lapses, your page remains available on your Ordarly link.'],
-  ['Is there a free trial?', 'Yes. Each restaurant can activate one 14-day Pro trial from the dashboard.'],
+  ['Can customers order for later?', 'Yes. If you switch it on, customers can choose ASAP or a date and time slot. Only slots inside your (or the branch\'s) opening hours, notice period and capacity are offered, and you get a reminder before each scheduled order.'],
+  ['How do multiple branches work?', 'On the Business plan each branch has its own address, phone, opening hours, delivery settings and, where needed, its own availability and prices. Customers pick a branch before ordering. You see every branch in one dashboard and can invite branch managers who only see their own branch.'],
+  ['Can customers add extras or choose a size?', 'Yes. Add add-ons with prices, and give a meal sizes with their own prices (for example 10″ Medium, 12″ Large, 14″ Family). Customers pick them on the meal page.'],
+  ['How do customers contact my restaurant?', 'Every restaurant page has a Contact button. Messages appear in the Messages tab of your dashboard and are emailed to you. You can reply from the dashboard.'],
+  ['What if I have a problem with the platform?', 'Use the Reports tab in your dashboard. Your report goes to our team and you can follow its progress. You can also reach us on WhatsApp or by phone on the contact page.'],
+  ['How do WhatsApp orders work?', 'If a restaurant has not set up online payment yet, the customer builds a cart and we open WhatsApp with the order pre-filled. The order is only confirmed once you accept it. WhatsApp notifications about new orders are included on every plan.'],
+  ['Who receives the money from customers?', 'You do. Paystack payments are routed to your own subaccount. On the Free plan, Ordarly\'s commission is deducted from the payment automatically; you keep the rest. Bank transfers (Pro) go straight to your account.'],
+  ['How long does Paystack settlement take?', 'Settlement timing is set by Paystack and your account, so we cannot promise instant settlement. Your dashboard shows payment status and your earnings, not guaranteed payout times.'],
+  ['How does bank transfer verification work?', 'On Pro, customers upload a screenshot, but a screenshot never marks an order paid. You check your own bank records and then accept or reject the proof.'],
+  ['What happens if my paid plan expires?', 'You move to Free automatically (5% commission applies to new orders). Nothing is deleted. Business branches and staff access pause until you renew; your data is kept.'],
+  ['Can I use my own domain?', 'Yes, on Pro and Business. Add the domain in Settings, create the DNS records shown, and Ordarly verifies it automatically. If your plan lapses, your page remains available on your Ordarly address.'],
 ];
 
 export function FAQ() {
@@ -156,10 +160,10 @@ const Doc = ({ title, updated, children }) => (
 export function Terms() {
   return (
     <Doc title="Terms & Conditions" updated="October 2026">
-      <section><h2>1. About the service</h2><p>Ordarly provides software that lets restaurants publish an online ordering page, manage menus and orders, and, on the Pro plan, accept checkout payments. Ordarly is a technology provider and is not a party to the sale of food between a restaurant and its customers.</p></section>
+      <section><h2>1. About the service</h2><p>Ordarly provides software that lets restaurants publish an online ordering page, manage menus and orders, and accept checkout payments. Ordarly is a technology provider and is not a party to the sale of food between a restaurant and its customers.</p></section>
       <section><h2>2. Accounts</h2><p>You must provide accurate information, keep your credentials secure, and are responsible for activity on your account. We may suspend accounts that breach these terms or applicable law.</p></section>
-      <section><h2>3. Plans and billing</h2><p>The Free plan is provided at no charge with the limits shown on our pricing page. Pro is billed monthly at the price shown at purchase. Pro features are enabled only after payment is verified or during an eligible 14-day trial. When Pro expires your account reverts to Free; your data is retained.</p></section>
-      <section><h2>4. Food-order payments</h2><p>Each restaurant is an independent merchant. Online payments are processed by Paystack under the restaurant's own approved arrangement, subject to Paystack's terms, fees and settlement schedule. Ordarly does not collect or redistribute food-order proceeds and charges no commission on them. Bank transfers and pay-on-delivery are arranged directly between restaurant and customer; the restaurant is solely responsible for confirming receipt of funds.</p></section>
+      <section><h2>3. Plans and billing</h2><p>The Free plan has no monthly charge; Ordarly keeps a commission on the meal subtotal (not delivery fees) of completed online-paid orders at the rate shown on our pricing page. Pro and Business are billed in advance at the price shown at purchase, with 0% or the configured commission. Paid features are enabled only after payment is verified. When a paid plan expires your account reverts to Free; your data is retained.</p></section>
+      <section><h2>4. Food-order payments</h2><p>Each restaurant is an independent merchant. Online payments are processed by Paystack under the restaurant's own approved arrangement, subject to Paystack's terms, fees and settlement schedule. Where a commission applies it is deducted automatically from the payment by the payment provider's split; Ordarly otherwise does not collect or redistribute food-order proceeds. Commission on orders that are cancelled or refunded is returned in proportion. Bank transfers and pay-on-delivery are arranged directly between restaurant and customer; the restaurant is solely responsible for confirming receipt of funds.</p></section>
       <section><h2>5. Restaurant responsibilities</h2><p>Restaurants are responsible for menu accuracy, pricing, food safety, fulfilment, delivery, refunds, and compliance with all applicable laws and licences.</p></section>
       <section><h2>6. Acceptable use</h2><p>You may not use Ordarly for unlawful, fraudulent or misleading activity, to upload harmful content, to interfere with the service, or to access other users' data.</p></section>
       <section><h2>7. Availability and liability</h2><p>We aim for reliable service but do not guarantee uninterrupted availability. To the extent permitted by law, Ordarly is not liable for indirect or consequential loss, or for losses arising from third-party services such as WhatsApp, Paystack, or email providers.</p></section>
