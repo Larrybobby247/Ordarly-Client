@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, naira } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
-import { Alert, ProLock, Spinner } from '../../components/ui';
+import { Alert, Spinner, Field } from '../../components/ui';
 import PlaceSearch from '../../components/PlaceSearch';
 
 function Toggle({ checked, onChange, label, desc, disabled }) {
@@ -39,7 +39,6 @@ export default function Fulfillment() {
     });
   }, []);
 
-  if (!data.isPro) return <ProLock title="Delivery, pickup and dine-in">Free restaurants arrange pickup directly with customers over WhatsApp.</ProLock>;
   if (!d || !info || !v) return <Spinner />;
 
   const num = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Number(x)]));
@@ -125,6 +124,39 @@ export default function Fulfillment() {
       </div>
 
       <button className="btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save fulfilment settings'}</button>
+      <SchedulingCard />
+    </div>
+  );
+}
+
+/* ---------------- Order for later ---------------- */
+const NOTICE = [[0, 'No notice'], [30, '30 minutes'], [60, '1 hour'], [120, '2 hours'], [240, '4 hours'], [720, '12 hours'], [1440, '1 day'], [2880, '2 days']];
+function SchedulingCard() {
+  const [f, setF] = useState(null); const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false);
+  useEffect(() => { api.get('/restaurant/scheduling').then((d) => setF(d.scheduling)).catch(() => setMsg({ kind: 'error', text: 'Could not load scheduling settings.' })); }, []);
+  if (!f) return null;
+  const set = (p) => setF((x) => ({ ...x, ...p }));
+  const save = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await api.put('/restaurant/scheduling', { enabled: f.enabled, maxDaysAhead: Number(f.maxDaysAhead), minNoticeMinutes: Number(f.minNoticeMinutes), slotMinutes: Number(f.slotMinutes), capacityPerSlot: Number(f.capacityPerSlot), reminderMinutes: Number(f.reminderMinutes), timezone: f.timezone });
+      setF(r.scheduling); setMsg({ kind: 'ok', text: 'Saved. Customers can now schedule orders within these limits.' });
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card space-y-4 p-6">
+      <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">Order for later (scheduled orders)</h3><p className="text-sm text-ink-500">Let customers pick a future date and time instead of ordering for right now. Times follow your opening hours (or each branch's own hours).</p></div>
+        <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" className="h-5 w-5" checked={f.enabled} onChange={(e) => set({ enabled: e.target.checked })} />On</label></div>
+      {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
+      {f.enabled && <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="How far ahead can customers book?"><select className="input" value={f.maxDaysAhead} onChange={(e) => set({ maxDaysAhead: e.target.value })}>{[1, 2, 3, 5, 7, 14, 30].map((n) => <option key={n} value={n}>{n} day{n > 1 && 's'}</option>)}</select></Field>
+        <Field label="Minimum notice"><select className="input" value={f.minNoticeMinutes} onChange={(e) => set({ minNoticeMinutes: e.target.value })}>{NOTICE.map(([m, l]) => <option key={m} value={m}>{l}</option>)}</select></Field>
+        <Field label="Time slot length"><select className="input" value={f.slotMinutes} onChange={(e) => set({ slotMinutes: e.target.value })}>{[15, 30, 45, 60, 120].map((n) => <option key={n} value={n}>{n} minutes</option>)}</select></Field>
+        <Field label="Orders per time slot" hint="0 means no limit. Full slots can't be booked."><input type="number" min="0" max="500" className="input" value={f.capacityPerSlot} onChange={(e) => set({ capacityPerSlot: e.target.value })} /></Field>
+        <Field label="Remind me before an order is due"><select className="input" value={f.reminderMinutes} onChange={(e) => set({ reminderMinutes: e.target.value })}>{[15, 30, 60, 90, 120, 180].map((n) => <option key={n} value={n}>{n} minutes before</option>)}</select></Field>
+        <Field label="Time zone" hint="All scheduled times use this zone."><input className="input" value={f.timezone} onChange={(e) => set({ timezone: e.target.value })} /></Field>
+      </div>}
+      <button className="btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save scheduling settings'}</button>
     </div>
   );
 }

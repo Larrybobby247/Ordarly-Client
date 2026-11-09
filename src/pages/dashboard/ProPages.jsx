@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 // PERF (changed): the QR library is no longer bundled with every dashboard page. It is downloaded only when the QR page is opened.
 const loadQR = () => import('qrcode').then((m) => m.default || m);
 import { api, naira } from '../../lib/api';
@@ -45,8 +46,7 @@ export function Payments() {
   const { data, reload } = useDash(); const [p, setP] = useState(null); const [msg, setMsg] = useState(null);
   const [bank, setBank] = useState({ bankName: '', accountName: '', accountNumber: '', enabled: true, acknowledged: false });
   const load = () => api.get('/restaurant/payments').then(setP);
-  useEffect(() => { if (data.isPro) load(); }, [data.isPro]);
-  if (!data.isPro) return <ProLock title="Online payments, bank transfer and pay on delivery" />;
+  useEffect(() => { load(); }, []);
   if (!p) return <Spinner />;
   const ps = { not_configured: ['gray', 'Not configured'], pending: ['amber', 'Pending verification'], active: ['green', 'Active'], attention: ['red', 'Needs attention'] }[p.paystack.status];
   const saveBank = async (e) => { e.preventDefault(); setMsg(null); try { await api.put('/restaurant/payments/bank', bank); await reload(); await load(); setBank({ ...bank, accountNumber: '' }); setMsg({ kind: 'ok', text: 'Bank transfer details saved.' }); } catch (x) { setMsg({ kind: 'error', text: x.message }); } };
@@ -55,10 +55,11 @@ export function Payments() {
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       <div className="card p-6">
         <div className="flex items-center justify-between"><h3 className="font-bold">Paystack online payments <Badge color="green">Recommended</Badge></h3><Badge color={ps[0]}>{ps[1]}</Badge></div>
-        <p className="mt-2 text-sm text-ink-500">Payments are verified server-side, so orders are only marked paid when Paystack confirms. Proceeds go to your own approved Paystack arrangement. Ordarly takes no commission, and the processing fee is borne by your restaurant. Settlement timing is controlled by Paystack, not Ordarly.</p>
+        <p className="mt-2 text-sm text-ink-500">Payments are verified server-side, so orders are only marked paid when Paystack confirms. Proceeds go to your own approved Paystack arrangement. {data.plan?.commissionPct > 0 ? `On your Free plan Ordarly keeps ${data.plan.commissionPct}% of the meal subtotal (never the delivery fee) of each completed order, taken automatically from the payment. ` : 'Ordarly takes no commission, and '}the processing fee is borne by your restaurant. Settlement timing is controlled by Paystack, not Ordarly.</p>
         <PaystackConnect p={p} reload={async () => { await load(); await reload(); }} setMsg={setMsg} enabled={data.restaurant.payments.paystackEnabled} />
       </div>
-      <form onSubmit={saveBank} className="card space-y-4 p-6">
+      {!data.isPro && <ProLock title="Bank transfer and pay on delivery">Free restaurants take online (Paystack) payments. Upgrade to Pro to also accept bank transfers and pay on delivery, with 0% Ordarly commission.</ProLock>}
+      {data.isPro && <form onSubmit={saveBank} className="card space-y-4 p-6">
         <div className="flex items-center justify-between"><h3 className="font-bold">Bank transfer</h3>{p.bank && <Badge color={data.restaurant.payments.bankTransferEnabled ? 'green' : 'gray'}>{data.restaurant.payments.bankTransferEnabled ? 'Enabled' : 'Disabled'}</Badge>}</div>
         {p.bank && <div className="rounded-2xl bg-mint-50 p-3 text-sm">{p.bank.bankName} · {p.bank.accountName} · {p.bank.accountNumber}</div>}
         <Alert kind="info">Bank details you provide do not give automatic confirmation that a transfer happened. A customer's screenshot never marks an order paid. You must check your own bank records before accepting a proof.</Alert>
@@ -71,11 +72,11 @@ export function Payments() {
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1" checked={bank.acknowledged} onChange={(e) => setBank({ ...bank, acknowledged: e.target.checked })} /> I understand transfers are not automatically verified.</label>
         <button className="btn-primary" disabled={!bank.acknowledged}>Save bank details</button>
         <p className="text-xs text-ink-500">Customers upload a screenshot after transferring. You review it under Orders, check your own bank records, then accept or reject. Nothing is marked paid until you accept.</p>
-      </form>
-      <div className="card flex items-center justify-between gap-4 p-6">
+      </form>}
+      {data.isPro && <div className="card flex items-center justify-between gap-4 p-6">
         <div><h3 className="font-bold">Pay on delivery</h3><p className="text-sm text-ink-500">Delivery orders only. Stays “Unpaid” until you mark cash collected.</p></div>
         <input type="checkbox" className="h-5 w-5" checked={data.restaurant.payments.podEnabled} onChange={async (e) => { await api.put('/restaurant/payments/toggles', { podEnabled: e.target.checked }); reload(); }} />
-      </div>
+      </div>}
     </div>
   );
 }
@@ -97,15 +98,16 @@ export function QR() {
 
 /* ---------------- Analytics ---------------- */
 export function Analytics() {
-  const { data } = useDash(); const [a, setA] = useState(null);
-  useEffect(() => { api.get('/restaurant/analytics').then(setA); }, []);
+  const { data, branches } = useDash(); const [a, setA] = useState(null); const [branch, setBranch] = useState('');
+  useEffect(() => { setA(null); api.get(`/restaurant/analytics${branch ? `?branch=${branch}` : ''}`).then(setA); }, [branch]);
   if (!a) return <Spinner />;
   return (
     <div className="space-y-5">
+      {data.isBusiness && branches.length > 0 && <select className="input !w-auto" value={branch} onChange={(e) => setBranch(e.target.value)} aria-label="Branch"><option value="">All branches</option>{branches.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}</select>}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4"><Stat label="Orders today" value={a.today} /><Stat label="Last 7 days" value={a.week} /><Stat label="Completed" value={a.completed} /><Stat label="Cancelled" value={a.cancelled} tone="bg-red-50 text-red-500" /></div>
-      {!data.isPro ? <ProLock title="Sales and order analytics" /> : (<>
+      {(<>
         <div className="grid gap-4 md:grid-cols-3">
-          <Stat label="Collected online (Paystack)" value={naira(a.collectedOnline)} /><Stat label="Bank transfers manually verified" value={naira(a.manuallyVerified)} tone="bg-sky-50 text-sky-600" /><Stat label="Pay-on-delivery awaiting collection" value={naira(a.podAwaitingCollection)} tone="bg-amber-50 text-amber-600" />
+          <Stat label="Collected online (Paystack)" value={naira(a.collectedOnline)} /><Stat label="Upcoming scheduled orders" value={a.upcomingScheduled || 0} tone="bg-violet-50 text-violet-700" /><Stat label="Bank transfers manually verified" value={naira(a.manuallyVerified)} tone="bg-sky-50 text-sky-600" /><Stat label="Pay-on-delivery awaiting collection" value={naira(a.podAwaitingCollection)} tone="bg-amber-50 text-amber-600" />
         </div>
         <p className="text-xs text-ink-500">Unpaid orders are never counted as collected revenue. Figures come from your real orders.</p>
         <div className="grid gap-4 md:grid-cols-3">
@@ -134,7 +136,7 @@ export function Subscription() {
         try {
           const r = await api.post('/subscription/verify', { reference: ref });
           if (stop) return;
-          if (r.status === 'success') { setMsg({ kind: 'ok', text: 'Payment verified. Pro is active.' }); history.replaceState(null, '', location.pathname); reload(); load(); return; }
+          if (r.status === 'success') { setMsg({ kind: 'ok', text: 'Payment verified. Your plan is active.' }); history.replaceState(null, '', location.pathname); reload(); load(); return; }
           if (r.status === 'failed') { setMsg({ kind: 'error', text: 'Payment failed or was cancelled. You were not charged for this attempt.' }); load(); return; }
           if (r.message && tries >= 3) setMsg({ kind: 'info', text: r.message });
         } catch (e) {
@@ -157,30 +159,42 @@ export function Subscription() {
       {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
       <div className="rounded-4xl bg-night p-7 text-white">
         <div className="flex items-center justify-between"><div className="text-sm text-white/60">Current plan</div><span className="rounded-full bg-white/10 px-3 py-1 text-xs">{sub?.status || 'free'}</span></div>
-        <div className="mt-1 font-display text-4xl font-bold">{s.isPro ? 'Pro' : 'Free'}</div>
+        <div className="mt-1 font-display text-4xl font-bold">{({ business: 'Business', pro: 'Pro', free: 'Free' })[s.plan || (s.isPro ? 'pro' : 'free')]}</div>
         <div className="mt-2 text-sm text-white/70">
-          {sub?.status === 'trialing' && `Trial: ${new Date(sub.trialStart).toDateString()} → ${new Date(sub.trialEnd).toDateString()}`}
+          {sub?.status === 'trialing' && `Trial ends ${new Date(sub.trialEnd).toDateString()}`}
           {sub?.status === 'active' && `Active until ${new Date(sub.periodEnd).toDateString()}`}
-          {sub?.status === 'expired' && 'Your Pro plan expired. Your data is safe.'}
-          {(!sub || sub.status === 'free') && 'Upgrade to unlock checkout, payments, delivery, tracking, QR codes and a custom domain.'}
-        </div>
-        <div className="mt-5 space-y-3">
-          {/* Billing period. The server decides the real amount; these numbers are only for display. */}
-          <div role="radiogroup" aria-label="Billing period" className="grid gap-2 sm:grid-cols-2">
-            {[['monthly', 'Monthly', `${naira(s.price)} / month`, 'Renew every month'], ['yearly', 'Yearly', `${naira(s.yearly.price)} / year`, `Save ${s.yearly.discountPct}% (${naira(s.yearly.savings)}) · about ${naira(s.yearly.monthlyEquivalent)}/month`]].map(([k, t, price, sub]) => (
-              <label key={k} className={`relative cursor-pointer rounded-2xl border p-4 text-left ${interval === k ? 'border-tomato-500 bg-white/10' : 'border-white/20'}`}>
-                <input type="radio" name="interval" className="sr-only" checked={interval === k} onChange={() => setInterval_(k)} />
-                {k === 'yearly' && <span className="absolute -top-2 right-3 rounded-full bg-tomato-500 px-2 py-0.5 text-[10px] font-bold">Save {s.yearly.discountPct}%</span>}
-                <div className="text-sm font-semibold">{t}</div><div className="mt-0.5 font-display text-xl font-bold">{price}</div><div className="mt-0.5 text-xs text-white/60">{sub}</div>
-              </label>))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-accent" disabled={busy} onClick={() => run(async () => { const r = await api.post('/subscription/checkout', { interval }); location.href = r.authorizationUrl; })}>{s.isPro ? 'Renew / extend' : 'Subscribe'} · {interval === 'yearly' ? `${naira(s.yearly.price)}/year` : `${naira(s.price)}/month`}</button>
-            {!sub?.trialUsed && !s.isPro && <button className="btn-ghost !bg-white/10 !text-white !border-white/20" disabled={busy} onClick={() => run(async () => { await api.post('/restaurant/trial'); await reload(); await load(); setMsg({ kind: 'ok', text: '14-day Pro trial started.' }); })}>Start 14-day free trial</button>}
-          </div>
-          {interval === 'yearly' && <p className="text-xs text-white/60">One payment gives you 365 days of Pro{sub?.status === 'active' ? ', added on top of your current period' : ''}. Pro does not renew by itself.</p>}
+          {sub?.status === 'expired' && 'Your paid plan expired. Your data is safe.'}
+          {(!sub || sub.status === 'free') && `Free: ${s.plans.free.commissionPct}% commission on the meal subtotal of completed orders. Delivery fees are always yours.`}
         </div>
       </div>
+
+      <div role="radiogroup" aria-label="Billing period" className="mx-auto flex w-fit rounded-full bg-white p-1 text-sm shadow-soft">
+        {[['monthly', 'Monthly'], ['yearly', `Yearly · save ${s.plans.pro.yearly.discountPct}%`]].map(([k, l]) => (
+          <label key={k} className={`cursor-pointer rounded-full px-4 py-1.5 font-semibold ${interval === k ? 'bg-night text-white' : 'text-ink-500'}`}><input type="radio" name="interval" className="sr-only" checked={interval === k} onChange={() => setInterval_(k)} />{l}</label>))}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {(() => {
+          const cur = s.plan || (s.isPro ? 'pro' : 'free');
+          const price = (pl) => (interval === 'yearly' ? pl.yearly.price : pl.price);
+          const unit = interval === 'yearly' ? '/year' : '/month';
+          const buy = (plan) => run(async () => { const r = await api.post('/subscription/checkout', { plan, interval }); location.href = r.authorizationUrl; });
+          const Card = ({ id, title, tag, children, cta }) => (
+            <div className={`card flex flex-col p-5 ${cur === id ? 'ring-2 ring-brand-500' : ''}`}><div className="flex items-center justify-between"><h3 className="font-bold">{title}</h3>{cur === id && <Badge color="green">Current</Badge>}</div>{tag}<ul className="mt-3 flex-1 space-y-1.5 text-sm text-ink-500">{children}</ul><div className="mt-4">{cta}</div></div>);
+          return (<>
+            <Card id="free" title="Free" tag={<div className="mt-1 font-display text-2xl font-bold">₦0<span className="text-sm font-normal text-ink-500"> /month</span></div>} cta={cur === 'free' ? <div className="text-center text-xs text-ink-500">Your current plan</div> : null}>
+              <li>✓ {s.plans.free.commissionPct}% commission on meal subtotal only</li><li>✓ No commission on delivery fees</li><li>✓ Own ordering website, menu, add-ons & sizes</li><li>✓ Online payment, delivery, pickup, dine-in, tracking</li><li>✓ Orders, WhatsApp alerts, earnings & analytics</li><li className="text-ink-300">✗ No custom domain, bank transfer or pay on delivery</li></Card>
+            <Card id="pro" title="Pro" tag={<div className="mt-1 font-display text-2xl font-bold">{naira(price(s.plans.pro))}<span className="text-sm font-normal text-ink-500"> {unit}</span></div>}
+              cta={cur === 'business' ? <div className="text-center text-xs text-ink-500">Included in Business</div> : <button className="btn-accent w-full" disabled={busy} onClick={() => buy('pro')}>{cur === 'pro' ? 'Renew / extend' : 'Upgrade to Pro'}</button>}>
+              <li>✓ {s.plans.pro.commissionPct}% Ordarly commission</li><li>✓ Custom domain</li><li>✓ Bank-account payment option</li><li>✓ Pay on delivery</li><li>✓ QR codes & everything in Free</li></Card>
+            <Card id="business" title="Business / Multi-branch" tag={s.plans.business.open ? <div className="mt-1 font-display text-2xl font-bold">{naira(price(s.plans.business))}<span className="text-sm font-normal text-ink-500"> {unit}</span></div> : <div className="mt-1 font-display text-2xl font-bold">Custom</div>}
+              cta={s.plans.business.open ? <button className="btn-primary w-full" disabled={busy} onClick={() => buy('business')}>{cur === 'business' ? 'Renew / extend' : 'Upgrade to Business'}</button> : <Link to="/contact" className="btn-primary w-full">Explore Business plan</Link>}>
+              <li>✓ Everything in Pro</li><li>✓ Up to {s.plans.business.open ? s.plans.business.maxBranches : 'several'} branches, one dashboard</li><li>✓ Per-branch menus, prices, hours & delivery</li><li>✓ Branch managers & staff with roles</li><li>✓ Branch and combined earnings reports</li></Card>
+          </>);
+        })()}
+      </div>
+      {interval === 'yearly' && <p className="text-center text-xs text-ink-500">One payment covers 365 days. Plans do not renew by themselves. Changing plan starts the new plan today.</p>}
+
       <div className="card p-6"><h3 className="mb-2 font-bold">Subscription payments</h3>
         <p className="mb-3 text-xs text-ink-500">These are your Ordarly subscription payments only, separate from customer food orders.</p>
         {s.payments.length === 0 ? <p className="text-sm text-ink-500">No payments yet.</p> : s.payments.map((p) => (
@@ -197,7 +211,7 @@ export function Subscription() {
 
         setMsg(
           r.status === 'success'
-            ? { kind: 'ok', text: 'Payment verified. Pro is active.' }
+            ? { kind: 'ok', text: 'Payment verified. Your plan is active.' }
             : {
                 kind: 'info',
                 text:

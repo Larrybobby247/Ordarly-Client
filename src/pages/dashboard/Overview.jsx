@@ -19,7 +19,7 @@ export default function Overview() {
   const todo = [
     !r.whatsapp && ['Add your WhatsApp number so customers can order', '/dashboard/settings'],
     !r.logo && ['Add a logo and cover image', '/dashboard/settings'],
-    !data.isPro && ['Try Pro free for 14 days', '/dashboard/subscription'],
+    !data.isPro && ['Go Pro: custom domain, bank transfer, pay on delivery and 0% commission', '/dashboard/subscription'],
   ].filter(Boolean);
   const review = [
     [summary?.newOrders, 'new order', 'waiting to be accepted', '/dashboard/orders'],
@@ -50,7 +50,7 @@ export default function Overview() {
         </div>)}
       <div className="grid gap-4 md:grid-cols-3">
         {a ? <><Stat label="Orders today" value={a.today} /><Stat label="Orders last 7 days" value={a.week} /></> : <><CardSkeleton /><CardSkeleton /></>}
-        <div className="card p-5"><div className="text-xs text-ink-500">Plan</div><div className="font-display text-3xl font-bold">{data.isPro ? 'Pro' : 'Free'}</div>
+        <div className="card p-5"><div className="text-xs text-ink-500">Plan</div><div className="font-display text-3xl font-bold">{({ business: 'Business', pro: 'Pro', free: 'Free' })[data.planKey || (data.isPro ? 'pro' : 'free')]}</div>
           <div className="mt-1 text-xs text-ink-500">{data.subscription?.status === 'trialing' ? `Trial ends ${new Date(data.subscription.trialEnd).toDateString()}` : data.subscription?.status === 'active' ? `Renews by ${new Date(data.subscription.periodEnd).toDateString()}` : 'Upgrade to unlock checkout & payments'}</div></div>
       </div>
       <p className="text-xs text-ink-500">Free-plan WhatsApp orders are order <i>requests</i>. They count as confirmed only after you accept them.</p>

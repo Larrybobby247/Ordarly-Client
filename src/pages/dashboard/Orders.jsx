@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, naira, ORDER_LABEL, PAY_LABEL, NEXT_STATUS } from '../../lib/api';
 import ProofReview from './ProofReview';
 import { Badge, statusColor, payColor, ListSkeleton, RetryError, Alert } from '../../components/ui';
@@ -7,6 +8,9 @@ import { useVisibleInterval } from '../../lib/hooks';
 
 const PAID = ['paid', 'paid_manual'];
 const needsPayment = (o) => o.channel === 'checkout' && ['paystack', 'bank_transfer'].includes(o.paymentMethod) && !PAID.includes(o.paymentStatus);
+
+const TYPES = [['', 'All orders'], ['asap', 'ASAP'], ['scheduled', 'Scheduled'], ['upcoming', 'Upcoming scheduled'], ['scheduled_done', 'Completed scheduled']];
+const schedLabel = (iso, tz = 'Africa/Lagos') => new Intl.DateTimeFormat('en-NG', { timeZone: tz, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(iso));
 
 const TILES = [
   ['Pending', ['pending', 'awaiting_whatsapp'], 'bg-amber-50 text-amber-700'],
@@ -19,9 +23,10 @@ const TILES = [
 ];
 
 export default function Orders() {
-  const [f, setF] = useState({ q: '', status: '', fulfillment: '', paymentMethod: '' });
+  const [sp] = useSearchParams();
+  const [f, setF] = useState({ q: '', status: '', fulfillment: '', paymentMethod: '', type: '', branch: sp.get('branch') || '' });
   const [res, setRes] = useState(null); const [sel, setSel] = useState(null); const [err, setErr] = useState('');
-  const { refreshSummary } = useDash(); const refreshRef = useRef(refreshSummary); refreshRef.current = refreshSummary; // a ref keeps load() stable, so the page never re-requests itself in a loop
+  const { refreshSummary, data: dash, branches, access } = useDash(); const tz = dash?.restaurant?.scheduling?.timezone || 'Africa/Lagos'; const refreshRef = useRef(refreshSummary); refreshRef.current = refreshSummary; // a ref keeps load() stable, so the page never re-requests itself in a loop
   const [today, setToday] = useState({ byStatus: {}, total: 0, waiting: 0 });
   const loadToday = useCallback(() => api.get('/orders/summary').then(setToday).catch(() => {}), []);
   const seq = useRef(0); const [loadErr, setLoadErr] = useState('');
@@ -50,6 +55,10 @@ export default function Orders() {
         </div>
         {today.waiting > 0 && <p className="mt-2 text-xs text-ink-500"><b>{today.waiting}</b> order{today.waiting === 1 ? ' is' : 's are'} waiting for you to accept (including earlier days).</p>}
       </section>
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Order type">{TYPES.map(([k, l]) => (
+        <button key={k} role="tab" aria-selected={f.type === k} onClick={() => setF({ ...f, type: k, status: k === 'upcoming' || k === 'scheduled_done' ? '' : f.status })} className={`rounded-full border px-3 py-1 text-xs font-semibold ${f.type === k ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-ink-300 hover:border-brand-500'}`}>{l}{k === 'upcoming' && today.upcomingScheduled > 0 && <span className="ml-1 rounded-full bg-violet-600 px-1.5 text-[10px] text-white">{today.upcomingScheduled}</span>}</button>))}
+        {dash?.isBusiness && branches.length > 0 && <select className="input !w-auto !py-1 text-xs" value={f.branch} onChange={(e) => setF({ ...f, branch: e.target.value })} aria-label="Branch"><option value="">{access.allBranches ? 'All branches' : 'All my branches'}</option>{access.allBranches && <option value="main">Main (no branch)</option>}{branches.map((b) => <option key={b._id} value={b._id}>{b.name}</option>)}</select>}
+      </div>
       <div className="card grid gap-3 p-4 sm:grid-cols-4">
         <input className="input" placeholder="Search ref, name, phone" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} />
         <select className="input" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">All statuses</option>{Object.entries(ORDER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
@@ -60,8 +69,8 @@ export default function Orders() {
         <div className="card divide-y divide-black/5">
           {res.orders.map((o) => (
             <button key={o._id} onClick={() => setSel(o)} className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left hover:bg-mint-50">
-              <div><div className="text-sm font-bold">{o.reference} <span className="font-normal text-ink-500">· {o.customerName || 'Customer'}</span></div><div className="text-xs text-ink-500">{new Date(o.createdAt).toLocaleString()} · {o.items.length} item(s)</div></div>
-              <div className="flex items-center gap-2"><Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge>{o.channel === 'checkout' && <Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge>}<b className="text-sm">{naira(o.total)}</b></div>
+              <div><div className="text-sm font-bold">{o.reference} <span className="font-normal text-ink-500">· {o.customerName || 'Customer'}</span></div><div className="text-xs text-ink-500">{new Date(o.createdAt).toLocaleString()} · {o.items.length} item(s){o.branchName && ` · ${o.branchName}`}</div>{o.isScheduled && <div className="mt-0.5 text-xs font-semibold text-violet-700">⏰ Scheduled for {schedLabel(o.scheduledFor, tz)}</div>}</div>
+              <div className="flex items-center gap-2">{o.isScheduled && <Badge color="blue">Scheduled</Badge>}<Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge>{o.channel === 'checkout' && <Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge>}<b className="text-sm">{naira(o.total)}</b></div>
             </button>
           ))}
         </div>
@@ -70,6 +79,8 @@ export default function Orders() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-6" onClick={() => setSel(null)}>
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-4xl bg-white p-6 md:rounded-4xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between"><div><div className="font-display text-xl font-bold">{sel.reference}</div><div className="text-xs text-ink-500">{new Date(sel.createdAt).toLocaleString()}</div></div><button onClick={() => setSel(null)} className="text-xl">×</button></div>
+            {sel.isScheduled && <div className="mt-3 rounded-2xl bg-violet-50 p-3 text-sm text-violet-800"><b>Scheduled order.</b> Due {schedLabel(sel.scheduledFor, tz)}{sel.branchName ? ` · ${sel.branchName}` : ''}. {['completed', 'cancelled'].includes(sel.status) ? '' : 'Accepting it now only confirms it; start preparing close to the due time.'}</div>}
+            {!sel.isScheduled && sel.branchName && <div className="mt-3 text-xs text-ink-500">Branch: <b>{sel.branchName}</b></div>}
             {sel.channel === 'whatsapp' && sel.status === 'awaiting_whatsapp' && <div className="mt-3"><Alert kind="info">WhatsApp order <b>request</b>. It is not confirmed until the customer messages you and you accept it.</Alert></div>}
             <div className="mt-4 space-y-1 text-sm">
               {[['Customer', sel.customerName], ['Phone', sel.customerPhone], ['Email', sel.customerEmail], ['Fulfilment', sel.fulfillment?.replace('_', ' ')], ['Address', sel.deliveryAddress && `${sel.deliveryAddress}${sel.deliveryPlace ? ', ' + sel.deliveryPlace : ''}${sel.deliveryDistanceKm ? ` (${sel.deliveryDistanceKm} km)` : ''}`], ['Table', sel.tableNumber], ['Notes', sel.notes]].filter(([, v]) => v).map(([k, v]) => <div key={k} className="flex justify-between gap-4"><span className="text-ink-500">{k}</span><span className="text-right">{v}</span></div>)}
@@ -92,6 +103,9 @@ export default function Orders() {
               ))}
               {sel.paymentStatus === 'unpaid_pod' && <button onClick={() => act(() => api.post(`/orders/${sel._id}/pod-collected`))} className="btn-dark">Mark cash collected</button>}
             </div>
+            {access.isOwner && sel.channel === 'checkout' && ['paid', 'paid_manual', 'refunded'].includes(sel.paymentStatus) && sel.refundedAmount < sel.total && (
+              <button className="mt-3 text-xs font-semibold text-red-600 underline" onClick={() => { const v = prompt(`Record a refund you have made to the customer (max ${naira(sel.total - (sel.refundedAmount || 0))}). Ordarly's commission on this order shrinks in proportion.`, String(sel.total - (sel.refundedAmount || 0))); if (v) act(() => api.post(`/orders/${sel._id}/refund`, { amount: Number(v) })); }}>Record a refund</button>)}
+            {sel.refundedAmount > 0 && <div className="mt-2 text-xs text-red-600">Refunded so far: {naira(sel.refundedAmount)}</div>}
             <p className="mt-3 text-xs text-ink-500">Order status and payment status are tracked separately. Completing an order never marks it paid.</p>
           </div>
         </div>
