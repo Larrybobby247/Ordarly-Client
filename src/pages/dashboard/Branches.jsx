@@ -75,7 +75,7 @@ function BranchForm({ initial, onSaved, onCancel, id }) {
           {[['baseFee', 'Base fee (₦)'], ['baseDistanceKm', 'Base distance (km)'], ['perKmRate', 'Per extra km (₦)'], ['maxRadiusKm', 'Max radius (km)']].map(([k, l]) => (
             <label key={k} className="text-xs">{l}<input type="number" min="0" step="any" className="input mt-1" value={rad[k]} onChange={(e) => set({ radius: { ...rad, [k]: e.target.value } })} /></label>))}
         </div>
-        <p className="mt-1 text-xs text-ink-500">Delivery needs this branch's own address (picked from the list) and radius. Fee = base fee, plus the per-km rate beyond the base distance.</p>
+        <p className="mt-1 text-xs text-ink-500">Delivery needs this branch's own address (picked from the list) and radius. Fee = base fee, plus the per-km rate for every started kilometre beyond the base distance (measured by road).</p>
       </div>
       <div className="flex gap-2"><button className="btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save branch'}</button><button type="button" className="btn-ghost" onClick={onCancel}>Cancel</button></div>
     </form>

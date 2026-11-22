@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api, naira } from '../../lib/api';
+import { api } from '../../lib/api';
 import { useDash } from '../../components/DashboardLayout';
 import { Alert, Spinner, Field } from '../../components/ui';
 import PlaceSearch from '../../components/PlaceSearch';
+import DeliveryPricingIllustration from '../../components/DeliveryPricingIllustration';
+import DeliveryTester from '../../components/DeliveryTester';
+import { readRules } from '../../lib/deliveryPricing';
 
 function Toggle({ checked, onChange, label, desc, disabled }) {
   return (
@@ -13,102 +16,109 @@ function Toggle({ checked, onChange, label, desc, disabled }) {
   );
 }
 
-// Same formula the server uses (rounded UP to the next ₦100). This is only a preview; the server prices real orders.
-const feeFor = (v, km) => (km > v.maxRadiusKm ? null : Math.ceil((km <= v.baseDistanceKm ? v.baseFee : v.baseFee + (km - v.baseDistanceKm) * v.perKmRate) / 100 - 1e-9) * 100);
-
 const TERMS = [
-  ['baseFee', 'Base fee (₦)', 'The starting price of every delivery. It covers the first stretch of distance, set by the base distance.', '1000', 50],
-  ['baseDistanceKm', 'Base distance (km)', 'How far the base fee reaches. A customer inside this distance pays only the base fee.', '3', 0.5],
-  ['perKmRate', 'Price per extra km (₦)', 'Added for every kilometre beyond the base distance.', '300', 50],
-  ['maxRadiusKm', 'Maximum radius (km)', 'The furthest you will deliver. Addresses beyond it cannot order delivery.', '12', 1],
+  ['baseFee', 'Base delivery fee (₦)', 'The minimum delivery amount customers pay.', 50],
+  ['perKmRate', 'Additional fee per kilometre (₦)', "The extra amount added as the customer's delivery distance increases.", 50],
+  ['maxRadiusKm', 'Maximum delivery radius (km)', 'The furthest distance you are willing to deliver.', 1],
 ];
+
+const toFields = (r) => ({ baseFee: String(r.baseFee), baseDistanceKm: String(r.baseDistanceKm), perKmRate: String(r.perKmRate), maxRadiusKm: String(r.maxRadiusKm) });
 
 export default function Fulfillment() {
   const { data, reload } = useDash();
   const [d, setD] = useState(null); const [info, setInfo] = useState(null); const [v, setV] = useState(null);
-  const [loc, setLoc] = useState(null); const [placeSession, setPlaceSession] = useState(''); const [km, setKm] = useState(6);
+  const [loc, setLoc] = useState(null); const [placeSession, setPlaceSession] = useState('');
   const [msg, setMsg] = useState(null); const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     api.get('/restaurant/fulfillment').then((r) => {
       const f = r.fulfillment; setInfo(r); setD(f);
-      setV(f.radius?.configured
-        ? { baseFee: String(f.radius.baseFee), baseDistanceKm: String(f.radius.baseDistanceKm), perKmRate: String(f.radius.perKmRate), maxRadiusKm: String(f.radius.maxRadiusKm) }
-        : { baseFee: '', baseDistanceKm: '', perKmRate: '', maxRadiusKm: '' });
+      setV(toFields(r.rules)); // saved values, or the Ordarly defaults for a restaurant that has not set its own yet
       setLoc(f.location?.lat != null ? { address: f.location.address, saved: true } : null);
     });
   }, []);
 
   if (!d || !info || !v) return <Spinner />;
 
-  const num = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, Number(x)]));
-  const valid = v.baseFee !== '' && v.perKmRate !== '' && num.baseDistanceKm >= 0.5 && num.maxRadiusKm >= num.baseDistanceKm && !!loc;
-  const preview = valid ? feeFor(num, km) : null;
-  const ready = info.deliveryReady && !loc?.placeId; // saved earlier and not being changed
+  const rules = readRules(v); // null until every number is filled in and sensible
+  const valid = !!rules && !!loc;
+  const usingDefaults = !!info.rules?.isDefault && Object.keys(v).every((k) => String(info.defaults[k]) === v[k]);
   const search = (input, token) => api.post('/restaurant/places/autocomplete', { input, sessionToken: token }).then((r) => r.suggestions);
+  const set = (k, x) => setV((p) => ({ ...p, [k]: x }));
+  const canEnable = !!loc;
 
   const save = async () => {
     setBusy(true); setMsg(null);
     try {
-      let on = d.deliveryEnabled;
+      let on = d.deliveryEnabled && canEnable;
       if (valid) {
-        await api.put('/restaurant/delivery-radius', { ...num, placeId: loc?.placeId, sessionToken: placeSession || undefined });
-        setLoc((l) => ({ address: l.address, saved: true })); setInfo((i) => ({ ...i, deliveryReady: true }));
-      } else on = false; // delivery cannot be on without a finished setup
+        const r = await api.put('/restaurant/delivery-radius', { ...rules, placeId: loc?.placeId, sessionToken: placeSession || undefined });
+        setLoc((l) => ({ address: l.address, saved: true })); setInfo((i) => ({ ...i, deliveryReady: true, rules: r.rules }));
+      } else if (!rules) { setMsg({ kind: 'error', text: 'Please fill in all the delivery prices (the maximum radius must be at least as far as the base distance) before saving.' }); setBusy(false); return; }
+      else on = false; // delivery cannot be on without a location
       await api.put('/restaurant/fulfillment', { ...d, deliveryEnabled: on });
       setD({ ...d, deliveryEnabled: on }); await reload();
-      setMsg({ kind: 'ok', text: valid ? 'Saved. Customers who pick delivery will now be priced by distance.' : 'Saved. Delivery stays hidden from customers until the radius rate is complete.' });
+      setMsg({ kind: 'ok', text: !valid ? 'Saved. Delivery stays off until you choose your restaurant location.' : on ? 'Saved. Customers who choose delivery will now be priced with these settings.' : 'Saved. Your delivery settings are ready. Switch on "Offer home delivery" and save when you want customers to see it.' });
     } catch (e) { setMsg({ kind: 'error', text: e.message }); } finally { setBusy(false); }
   };
-  const canEnable = valid || info.deliveryReady;
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
-      {msg && <Alert kind={msg.kind}>{msg.text}</Alert>}
-
-      <div className="card space-y-5 p-6">
+      <div className="card space-y-6 p-6">
         <div>
-          <h3 className="text-lg font-bold">🚚 Delivery by distance (radius rate)</h3>
-          <p className="text-sm text-ink-500">Your delivery fee is worked out automatically from how far the customer is from your restaurant. Fill in the four numbers below and customers will see their price at checkout. <b>Until this is complete, customers can't choose delivery.</b></p>
+          <h3 className="text-lg font-bold">🚚 Delivery</h3>
+          <p className="text-sm text-ink-500">Pick your restaurant's location and you're ready to go. We fill in sensible delivery prices for you, and you can change them any time.</p>
         </div>
 
-        {!info.mapsConfigured && <Alert kind="info">Address search is not switched on for this platform yet, so delivery can't be set up. (Admin: add <code>LOCATIONIQ_API_KEY</code> to the server settings.)</Alert>}
+        {!info.mapsConfigured && <Alert kind="info">Address search and distance calculation are not switched on for this platform yet, so delivery can't be set up. (Admin: add <code>GOOGLE_PLACES_API_KEY</code> and <code>LOCATIONIQ_API_KEY</code> to the server settings.)</Alert>}
 
-        <div>
-          <label className="label" htmlFor="loc">1. Where is your restaurant?</label>
-          <PlaceSearch id="loc" search={search} initial={loc?.address || ''} placeholder="Search your restaurant's street address…" disabled={!info.mapsConfigured}
+        {/* 1. Restaurant Location */}
+        <section aria-labelledby="sec-loc" className="space-y-2">
+          <h4 id="sec-loc" className="text-base font-bold">1. Restaurant location</h4>
+          <label className="label" htmlFor="loc">Where is your restaurant?</label>
+          <PlaceSearch id="loc" search={search} initial={loc?.address || ''} placeholder="Start typing your restaurant's address…" disabled={!info.mapsConfigured}
             onPick={(s, token) => { if (s) { setLoc({ placeId: s.placeId, address: s.text || `${s.main}, ${s.secondary}` }); setPlaceSession(token); } else setLoc(null); }} />
-          <p className="mt-1 text-xs text-ink-500">{loc?.saved ? '✓ Location saved. Search again to change it.' : loc ? '✓ Address picked. Save to keep it.' : 'Distances are measured from this point. Pick the address from the list.'}</p>
-        </div>
+          {loc ? (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50 p-3 text-sm">
+              <div><div className="text-xs font-semibold uppercase tracking-wide text-brand-700">{loc.saved ? 'Your restaurant location' : 'Selected location (not saved yet)'}</div><div className="font-medium">📍 {loc.address}</div></div>
+            </div>) : <p className="text-xs text-ink-500">Delivery distances are measured from this point. Pick your address from the suggestions.</p>}
+          {loc && <p className="text-xs text-ink-500">{loc.saved ? 'To change it, search for a new address above.' : 'Press "Save changes" at the bottom to keep this location.'}</p>}
+        </section>
 
-        <div>
-          <div className="label">2. Set your prices</div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {TERMS.map(([k, label, help, ph, step]) => (
+        {/* 2. Delivery Pricing */}
+        <section aria-labelledby="sec-price" className="space-y-3">
+          <div>
+            <h4 id="sec-price" className="text-base font-bold">2. Delivery pricing</h4>
+            <p className="text-xs text-ink-500">{usingDefaults ? "We've filled these in with our recommended starting prices. Keep them, or change them to suit your dispatch costs." : 'Change these any time to suit your dispatch costs and delivery policy.'}</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {TERMS.map(([k, label, help, step]) => (
               <div key={k} className="rounded-2xl border border-black/10 p-3">
                 <label className="label" htmlFor={k}>{label}</label>
-                <input id={k} className="input" type="number" min="0" step={step} inputMode="decimal" placeholder={`e.g. ${ph}`} value={v[k]} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
+                <input id={k} className="input" type="number" min="0" step={step} inputMode="decimal" value={v[k]} onChange={(e) => set(k, e.target.value)} />
                 <p className="mt-1.5 text-xs text-ink-500">{help}</p>
               </div>))}
           </div>
-          {v.maxRadiusKm !== '' && num.maxRadiusKm < num.baseDistanceKm && <p className="mt-2 text-xs text-red-600">The maximum radius can't be smaller than the base distance.</p>}
-        </div>
+          <details className="rounded-2xl border border-black/10 p-3 text-sm">
+            <summary className="cursor-pointer font-semibold">Advanced settings</summary>
+            <div className="mt-3 max-w-xs">
+              <label className="label" htmlFor="baseDistanceKm">Distance covered by the base fee (km)</label>
+              <input id="baseDistanceKm" className="input" type="number" min="0.5" step="0.5" inputMode="decimal" value={v.baseDistanceKm} onChange={(e) => set('baseDistanceKm', e.target.value)} />
+              <p className="mt-1.5 text-xs text-ink-500">Customers within this distance pay only the base fee. Most restaurants leave this at {info.defaults.baseDistanceKm} km.</p>
+            </div>
+          </details>
+          {!rules && <p className="text-xs text-red-600">{Number(v.maxRadiusKm) < Number(v.baseDistanceKm) && v.maxRadiusKm !== '' ? 'The maximum delivery radius must be at least as far as the base distance.' : 'Please fill in every price. Use 0 if you want an amount to be free.'}</p>}
+          <Toggle checked={d.deliveryEnabled && canEnable} disabled={!canEnable} onChange={(x) => setD({ ...d, deliveryEnabled: x })} label="Offer home delivery"
+            desc={canEnable ? 'Customers will see delivery at checkout and pay the fee shown below.' : 'Choose your restaurant location first. Until then delivery is hidden from customers.'} />
+        </section>
 
-        <div className="rounded-2xl bg-mint-50 p-4 text-sm">
-          <div className="font-semibold">How a customer's price is worked out</div>
-          <p className="mt-1 text-xs text-ink-500">Fee = base fee, plus (distance − base distance) × price per extra km. The result is rounded up to the next ₦100. Distance is the straight-line distance on the map.</p>
-          {valid ? (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span>Try it: a customer</span>
-              <input aria-label="Distance in km" className="input !w-20 !py-1.5" type="number" min="0" step="0.5" value={km} onChange={(e) => setKm(Math.max(0, Number(e.target.value)))} />
-              <span>km away pays</span><b className="text-brand-700">{preview == null ? 'nothing: too far to deliver' : naira(preview)}</b>
-            </div>) : <p className="mt-2 text-xs text-ink-500">Complete steps 1 and 2 to see an example.</p>}
-          {valid && num.baseDistanceKm > 0 && <p className="mt-2 text-xs text-ink-500">Example: {naira(num.baseFee)} for the first {num.baseDistanceKm} km, then {naira(num.perKmRate)} for every extra km, up to {num.maxRadiusKm} km.</p>}
-        </div>
+        {/* 3. How Your Delivery Pricing Works */}
+        <section aria-label="How your delivery pricing works"><DeliveryPricingIllustration rules={rules} /></section>
 
-        <Toggle checked={d.deliveryEnabled && canEnable} disabled={!canEnable} onChange={(x) => setD({ ...d, deliveryEnabled: x })} label="3. Offer home delivery"
-          desc={canEnable ? 'Customers will see delivery at checkout.' : 'Finish steps 1 and 2 first. Until then delivery is hidden from customers.'} />
-        {ready && !d.deliveryEnabled && <p className="text-xs text-ink-500">Your radius rate is saved. Tick the box and save to start offering delivery.</p>}
+        {/* 4. Test Your Delivery Charges */}
+        <section aria-label="Test your delivery charges">
+          <DeliveryTester rules={rules} disabled={!info.mapsConfigured} origin={loc ? { address: loc.address, placeId: loc.saved ? undefined : loc.placeId } : null} />
+        </section>
       </div>
 
       <div className="card space-y-4 p-6">
@@ -123,7 +133,10 @@ export default function Fulfillment() {
         <Toggle checked={d.askTableNumber} onChange={(x) => setD({ ...d, askTableNumber: x })} label="Ask for a table number" desc="Optional seating reference." />
       </div>
 
-      <button className="btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save fulfilment settings'}</button>
+      <div className="space-y-3">
+        {msg && <div role="status"><Alert kind={msg.kind}>{msg.text}</Alert></div>}
+        <button className="btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save changes'}</button>
+      </div>
       <SchedulingCard />
     </div>
   );
