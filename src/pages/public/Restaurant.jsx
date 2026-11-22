@@ -261,7 +261,7 @@ function DeliveryPlace({ slug, rules, quote, setQuote, branchId }) {
     setErr(''); setQuote(null);
     if (!s) return;
     setBusy(true);
-    try { const q = await api.post(`/public/r/${slug}/delivery-quote`, { placeId: s.placeId, sessionToken: token, ...(branchId ? { branchId } : {}) }); setQuote({ ...q, placeId: s.placeId }); }
+    try { const q = await api.post(`/public/r/${slug}/delivery-quote`, { placeId: s.placeId, sessionToken: token, ...(branchId ? { branchId } : {}) }); setQuote({ ...q, placeId: q.placeId || s.placeId }); }
     catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   return (
@@ -269,9 +269,9 @@ function DeliveryPlace({ slug, rules, quote, setQuote, branchId }) {
       <label className="label" htmlFor="dest">Search your delivery address</label>
       <PlaceSearch id="dest" search={search} onPick={pick} placeholder="Type your street, estate or area…" />
       {busy && <p className="mt-1 text-xs text-ink-500">Checking the delivery price…</p>}
-      {quote && <p className="mt-1 text-xs font-semibold text-brand-700">✓ About {quote.distanceKm} km away · delivery {naira(quote.fee)}</p>}
+      {quote && <p className="mt-1 text-xs font-semibold text-brand-700">✓ {quote.distanceKm} km by road · delivery {naira(quote.fee)}</p>}
       {err && <p className="mt-1 text-xs text-red-600">{err}</p>}
-      {!quote && !err && !busy && rules && <p className="mt-1 text-xs text-ink-500">Delivery starts at {naira(rules.baseFee)}, and we deliver up to {rules.maxRadiusKm} km away.</p>}
+      {!quote && !err && !busy && rules && <p className="mt-1 text-xs text-ink-500">Delivery starts at {naira(rules.baseFee)}, and we deliver up to {rules.maxRadiusKm} km away by road.</p>}
     </div>
   );
 }
