@@ -48,10 +48,12 @@ export default function PlaceSearch({ search, onPick, onText, placeholder = 'Sta
                 <span className="font-semibold">{s.main}</span>{s.secondary && <span className="block text-xs text-ink-500">{s.secondary}</span>}
               </button>
             </li>))}
-          {/* LocationIQ asks free-plan users to credit them where their results are shown */}
-          <li className="px-3 py-1 text-right text-[10px] text-ink-500" aria-hidden="true"><a href="https://locationiq.com/?ref=maps" target="_blank" rel="noreferrer" className="underline" onMouseDown={(e) => e.preventDefault()}>Search by LocationIQ.com</a></li>
+          {/* Google requires "Powered by Google" next to its suggestions; LocationIQ asks free-plan users to credit them. Credit whichever provider answered. */}
+          {list[0]?.provider === 'google'
+            ? <li className="px-3 py-1 text-right text-[10px] text-ink-500" aria-hidden="true">Powered by Google</li>
+            : <li className="px-3 py-1 text-right text-[10px] text-ink-500" aria-hidden="true"><a href="https://locationiq.com/?ref=maps" target="_blank" rel="noreferrer" className="underline" onMouseDown={(e) => e.preventDefault()}>Search by LocationIQ.com</a></li>}
         </ul>)}
-      {state === 'empty' && <p className="mt-1 text-xs text-ink-500">No matching address found. Try adding the area or city.</p>}
+      {state === 'empty' && <p className="mt-1 text-xs text-ink-500">No matching address found. Try adding the area or city, or search for a nearby landmark, school or junction instead.</p>}
       {state === 'error' && <p className="mt-1 text-xs text-red-600">Address search is unavailable right now. Please try again.</p>}
     </div>
   );
