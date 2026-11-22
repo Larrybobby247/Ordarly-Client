@@ -27,7 +27,8 @@ function SystemCheck() {
               hint="Some payout accounts were created with a different key (usually test mode). Restaurants must disconnect and reconnect Online payments after you switch to live keys." />
             <Row ok={d.configured.jwtSecret} label="JWT_SECRET set" hint="Required for login." />
             <Row ok={d.configured.email} label="Email (Resend) key set" hint="Add RESEND_API_KEY so order and verification emails send." />
-            <Row ok={d.configured.addressSearch} label="Address search key set (LocationIQ)" hint="Add LOCATIONIQ_API_KEY, otherwise delivery stays hidden." />
+            <Row ok={d.configured.googlePlaces} label="Address search key set (Google Places)" hint="Add GOOGLE_PLACES_API_KEY for address suggestions. Without it LocationIQ is used for suggestions." />
+            <Row ok={d.configured.roadDistance} label="Road distance key set (LocationIQ)" hint="Add LOCATIONIQ_API_KEY, otherwise delivery stays hidden." />
             <Row ok={d.configured.pushNotifications} label="Device notification keys set" hint="Optional. Add VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY." />
           </ul>
           <div className="mt-3 rounded-2xl bg-mint-50 p-3 text-xs"><b>Webhook URL to paste into Paystack (Settings → API Keys &amp; Webhooks, in the LIVE section):</b><div className="mt-1 break-all font-mono">{d.webhookUrl}</div></div>
