@@ -290,6 +290,14 @@ function CartSheet({ d, r, isPro, canSchedule, branchId, lines, subtotal, setQty
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const removeInvalid = () => lines.filter((l) => !l.valid).forEach((l) => setQty(l.key, 0));
 
+  // "Continue on WhatsApp": the server stores the cart under a short-lived single-use code and gives us a wa.me link that starts the chat with it.
+  const continueOnWhatsApp = async () => {
+    setBusy(true); setErr('');
+    try {
+      const res = await api.post(`/public/r/${slug}/whatsapp-session`, { cart: cartPayload, ...(branchId ? { branchId } : {}) });
+      window.open(res.whatsappUrl, '_blank', 'noopener');
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
   const whatsapp = async () => {
     setBusy(true); setErr('');
     try {
@@ -351,6 +359,7 @@ function CartSheet({ d, r, isPro, canSchedule, branchId, lines, subtotal, setQty
               {!r.whatsapp && <p className="text-xs text-red-500">This restaurant has not set up WhatsApp yet.</p>}
             </>)}
             {isPro && <button disabled={hasInvalid || !cartPayload.length || !(r.isOpen || canSchedule)} onClick={() => setStep('checkout')} className="btn-accent w-full !py-3.5">Continue to checkout</button>}
+            {d.whatsappCommerce && r.isOpen && <button disabled={busy || hasInvalid || !cartPayload.length} onClick={continueOnWhatsApp} className="btn-primary w-full !bg-[#25D366] !py-3">{busy ? 'Opening WhatsApp…' : 'Continue on WhatsApp'}</button>}
           </div></>)}
 
         {!done && step === 'checkout' && isPro && (
