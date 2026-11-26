@@ -26,6 +26,9 @@ const Settings = lazy(() => import('./pages/dashboard/Settings'));
 const Fulfillment = lazy(() => import('./pages/dashboard/Fulfillment'));
 const WhatsAppCommerce = lazy(() => import('./pages/dashboard/WhatsAppCommerce'));
 const WhatsAppAutomation = lazy(() => import('./pages/dashboard/WhatsAppAutomation'));
+const WhatsAppInbox = lazy(() => import('./pages/dashboard/WhatsAppInbox'));
+const WhatsAppBilling = lazy(() => import('./pages/dashboard/WhatsAppBilling'));
+const AdminWhatsApp = lazy(() => import('./pages/admin/WhatsApp'));
 const Messages = lazy(() => import('./pages/dashboard/Messages'));
 const Earnings = lazy(() => import('./pages/dashboard/Earnings'));
 const Branches = lazy(() => import('./pages/dashboard/Branches'));
@@ -101,7 +104,7 @@ function PlatformRoutes() {
       <Route path="dashboard" element={<DashboardLayout />}>
         <Route index element={<Overview />} /><Route path="orders" element={<Orders />} /><Route path="menu" element={<Menu />} />
         <Route path="messages" element={<Messages />} /><Route path="reports" element={<Reports />} />
-        <Route path="whatsapp" element={<WhatsAppCommerce />} /><Route path="whatsapp/automation" element={<WhatsAppAutomation />} />
+        <Route path="whatsapp" element={<WhatsAppCommerce />} /><Route path="whatsapp/automation" element={<WhatsAppAutomation />} /><Route path="whatsapp/inbox" element={<WhatsAppInbox />} /><Route path="whatsapp/billing" element={<WhatsAppBilling />} />
         <Route path="fulfillment" element={<Fulfillment />} /><Route path="payments" element={<Payments />} /><Route path="qr" element={<QR />} />
         <Route path="earnings" element={<Earnings />} /><Route path="branches" element={<Branches />} /><Route path="staff" element={<Staff />} />
         <Route path="analytics" element={<Analytics />} /><Route path="subscription" element={<Subscription />} /><Route path="settings" element={<Settings />} />
@@ -115,7 +118,7 @@ function PlatformRoutes() {
         <Route path="subscriptions" element={<AdminSubscriptions />} /><Route path="transactions" element={<AdminTransactions />} />
         <Route path="complaints" element={<AdminComplaints />} /><Route path="complaints/:id" element={<AdminComplaintDetail />} />
         <Route path="analytics" element={<AdminAnalytics />} /><Route path="emails" element={<AdminEmails />} />
-        <Route path="logs" element={<AdminLogs />} /><Route path="settings" element={<AdminSettings />} />
+        <Route path="whatsapp" element={<AdminWhatsApp />} /><Route path="logs" element={<AdminLogs />} /><Route path="settings" element={<AdminSettings />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
       <Route path="track/:token" element={<Track />} />
