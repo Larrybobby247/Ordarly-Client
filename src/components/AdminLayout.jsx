@@ -16,6 +16,7 @@ const nav = [
   ['/admin/transactions', 'Transactions', 'M3 6h18v12H3zM3 10h18'],
   ['/admin/complaints', 'Complaints', 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', false, 'complaints'],
   ['/admin/analytics', 'Analytics', 'M4 20V10M10 20V4M16 20v-8M22 20H2'],
+  ['/admin/whatsapp', 'WhatsApp', 'M4 5h16v11H9l-5 4zM9 9.5c.5 2 2 3.5 4 4'],
   ['/admin/emails', 'Emails', 'M3 6h18v12H3zM3 7l9 7 9-7'],
   ['/admin/logs', 'Logs & audit', 'M6 3h9l4 4v14H6zM9 12h7M9 16h7'],
   ['/admin/settings', 'Platform settings', 'M12 15a3 3 0 100-6 3 3 0 000 6zM19 12a7 7 0 00-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 00-2-1.2L14 3h-4l-.5 2.6a7 7 0 00-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 005 12'],

@@ -20,7 +20,8 @@ const NAV = [
   ['/dashboard/branches', 'Branches', 'M12 21s-7-6.2-7-11a7 7 0 1114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z', false, undefined, 'branches'],
   ['/dashboard/staff', 'Staff', 'M16 11a4 4 0 10-8 0M4 21a8 8 0 0116 0', false, undefined, 'business:staff'],
   ['/dashboard/messages', 'Messages', 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5', false, 'messages', 'owner'],
-  ['/dashboard/whatsapp', 'WhatsApp', 'M4 5h16v11H9l-5 4zM9 9.5c.5 2 2 3.5 4 4', false, undefined, 'owner'],
+  ['/dashboard/whatsapp', 'WhatsApp', 'M4 5h16v11H9l-5 4zM9 9.5c.5 2 2 3.5 4 4', true, undefined, 'owner'],
+  ['/dashboard/whatsapp/inbox', 'WhatsApp inbox', 'M4 4h16v12H8l-4 4zM8 9h8M8 12h5', false, undefined, 'inbox'], // owner, or staff with Orders permission and every-branch access
   ['/dashboard/reports', 'Reports', 'M5 21V4h11l-1 4 4 2H5', false, 'reports', 'owner'],
   ['/dashboard/fulfillment', 'Delivery & Pickup', 'M3 7h11v9H3zM14 10h4l3 3v3h-7M7 19a2 2 0 100-4 2 2 0 000 4zM17 19a2 2 0 100-4 2 2 0 000 4z', false, undefined, 'owner'],
   ['/dashboard/payments', 'Payments', 'M3 6h18v12H3zM3 10h18', false, undefined, 'owner'],
@@ -41,6 +42,7 @@ export function accessOf(data) {
 
 const showItem = (rule, acc) => {
   if (!rule || rule === 'owner') return acc.isOwner;
+  if (rule === 'inbox') return acc.isOwner || (acc.can('orders') && acc.allBranches);
   if (rule === 'branches') return acc.isOwner || (acc.isBusiness && (acc.can('branches') || acc.can('menu')));
   if (rule.startsWith('business:')) return acc.isBusiness && acc.can(rule.slice(9));
   if (rule.startsWith('perm:')) return acc.can(rule.slice(5));

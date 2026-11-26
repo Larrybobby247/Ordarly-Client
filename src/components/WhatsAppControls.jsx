@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { Alert, Badge, CardSkeleton, RetryError } from './ui';
+import { startEmbeddedSignup } from '../lib/metaSignup';
 
 // The three independent WhatsApp controls: connection, automation, and accepting orders.
 // The server enforces every rule (and re-checks at the moment of each send); this screen only shows the state and sends the owner's choice.
@@ -59,6 +60,16 @@ export default function WhatsAppControls() {
     catch (e) { setMsg({ kind: 'error', text: e.message }); await load(); }
     finally { setBusy(''); }
   };
+  const connect = async () => {
+    setBusy('connection'); setMsg(null);
+    try {
+      const cfg = await api.get('/whatsapp/config');
+      if (!cfg.configured || !cfg.appId || !cfg.configId) throw new Error('WhatsApp connection is not set up on this server yet.');
+      const r = await startEmbeddedSignup(cfg);
+      setD(await api.post('/whatsapp/embedded-signup', r));
+      setMsg({ kind: 'ok', text: 'WhatsApp is connected. Automation and orders start OFF: switch them on when you are ready.' });
+    } catch (e) { setMsg({ kind: 'error', text: e.message }); } finally { setBusy(''); }
+  };
   const disconnect = async () => {
     setBusy('connection'); setMsg(null);
     try {
@@ -80,6 +91,10 @@ export default function WhatsAppControls() {
           <div className="mb-1"><Badge color={STATUS_COLOR[c.status]}>{c.label}</Badge></div>
           {c.displayPhoneNumber && <div className="font-medium text-ink-900">{c.displayPhoneNumber}{c.verifiedDisplayName ? ` · ${c.verifiedDisplayName}` : ''}</div>}
           <p className="mt-1">{c.help}</p>
+          {c.suspended && <p className="mt-2 rounded-xl bg-red-50 p-2 text-xs font-medium text-red-700">WhatsApp is suspended for your restaurant by Ordarly. Nothing is sent and no new WhatsApp orders are taken. Contact support.</p>}
+          {c.lastError && c.status !== 'connected' && <p className="mt-2 text-xs text-red-600">{c.lastError.message}</p>}
+          {c.connected && c.coexistence && <p className="mt-1 text-xs">Your number also works in the WhatsApp Business app. If you reply there, Ordarly's assistant stops for that customer.</p>}
+          {!c.connected && c.canConnect && !c.suspended && <button type="button" className="btn-primary mt-3 !px-4 !py-2 text-sm" disabled={busy === 'connection'} onClick={connect}>{busy === 'connection' ? 'Connecting…' : c.status === 'not_connected' ? 'Connect WhatsApp' : 'Reconnect WhatsApp'}</button>}
           {!c.connected && !c.canConnect && <p className="mt-2 text-xs">Connecting a number becomes available once Ordarly's Meta setup is complete.</p>}
           {confirm && (
             <div className="mt-3 rounded-2xl border border-red-100 bg-red-50 p-3 text-red-700">
