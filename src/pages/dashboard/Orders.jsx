@@ -6,6 +6,29 @@ import { Badge, statusColor, payColor, ListSkeleton, RetryError, Alert } from '.
 import { useDash } from '../../components/DashboardLayout';
 import { useVisibleInterval } from '../../lib/hooks';
 
+const NOTE_LABEL = { paid: 'Order confirmation', accepted: 'Accepted', preparing: 'Preparing', ready: 'Ready', out_for_delivery: 'Out for delivery', completed: 'Completed', cancelled: 'Cancelled', payment_failed: 'Payment failed' };
+const NOTE_STATE = { queued: ['Queued', 'text-amber-700'], sent: ['Sent (not yet delivered)', 'text-ink-700'], delivered: ['Delivered', 'text-green-700'], failed: ['Failed', 'text-red-700'] };
+// WhatsApp messages about one order: whether each was sent, delivered or failed, the tracking link, and a Resend button.
+function WaNotifications({ order }) {
+  const [d, setD] = useState(null); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const [copied, setCopied] = useState(false);
+  const load = useCallback(() => api.get(`/whatsapp/orders/${order._id}/notifications`).then(setD).catch((e) => setErr(e.message)), [order._id, order.status, order.paymentStatus]);
+  useEffect(() => { load(); }, [load]);
+  const resend = async () => { setBusy(true); setErr(''); try { await api.post(`/whatsapp/orders/${order._id}/notifications/resend`, {}); setTimeout(load, 1500); } catch (e) { setErr(e.message); } finally { setBusy(false); } };
+  if (!d && !err) return null;
+  const confirmation = d?.notifications.find((n) => n.event === 'paid');
+  return (
+    <div className="mt-3 space-y-2 rounded-2xl bg-mint-50 p-3 text-sm">
+      <div className="font-semibold">WhatsApp updates</div>
+      {d && <div className="text-xs text-ink-500">Confirmation: {confirmation ? NOTE_STATE[confirmation.state]?.[0] : order.paymentStatus === 'paid' ? 'not sent' : 'sent after payment is verified'}</div>}
+      {d?.notifications.map((n, i) => <div key={i} className="flex flex-wrap justify-between gap-2 text-xs"><span>{NOTE_LABEL[n.event] || n.event}</span><span className={NOTE_STATE[n.state]?.[1]}>{NOTE_STATE[n.state]?.[0]}{n.reason ? `: ${n.reason}` : ''}</span></div>)}
+      {d?.trackingLink && <div className="break-all text-xs"><b>Tracking link:</b> <a className="underline" href={d.trackingLink} target="_blank" rel="noreferrer">{d.trackingLink}</a> <button className="ml-1 underline" onClick={() => navigator.clipboard?.writeText(d.trackingLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); })}>{copied ? 'Copied' : 'Copy'}</button></div>}
+      {err && <div className="text-xs text-red-700">{err}</div>}
+      <button className="btn-outline text-xs" disabled={busy} onClick={resend}>Resend current update</button>
+      <p className="text-[11px] text-ink-500">If a WhatsApp message fails, the order is not affected. It stays valid here and on the customer's tracking page.</p>
+    </div>
+  );
+}
+
 const PAID = ['paid', 'paid_manual'];
 const needsPayment = (o) => o.channel === 'checkout' && ['paystack', 'bank_transfer'].includes(o.paymentMethod) && !PAID.includes(o.paymentStatus);
 
@@ -24,7 +47,7 @@ const TILES = [
 
 export default function Orders() {
   const [sp] = useSearchParams();
-  const [f, setF] = useState({ q: '', status: '', fulfillment: '', paymentMethod: '', type: '', branch: sp.get('branch') || '' });
+  const [f, setF] = useState({ q: '', status: '', fulfillment: '', paymentMethod: '', source: '', type: '', branch: sp.get('branch') || '' });
   const [res, setRes] = useState(null); const [sel, setSel] = useState(null); const [err, setErr] = useState('');
   const { refreshSummary, data: dash, branches, access } = useDash(); const tz = dash?.restaurant?.scheduling?.timezone || 'Africa/Lagos'; const refreshRef = useRef(refreshSummary); refreshRef.current = refreshSummary; // a ref keeps load() stable, so the page never re-requests itself in a loop
   const [today, setToday] = useState({ byStatus: {}, total: 0, waiting: 0 });
@@ -64,13 +87,14 @@ export default function Orders() {
         <select className="input" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option value="">All statuses</option>{Object.entries(ORDER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
         <select className="input" value={f.fulfillment} onChange={(e) => setF({ ...f, fulfillment: e.target.value })}><option value="">All fulfilment</option>{['whatsapp_pickup', 'delivery', 'pickup', 'dine_in'].map((k) => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}</select>
         <select className="input" value={f.paymentMethod} onChange={(e) => setF({ ...f, paymentMethod: e.target.value })}><option value="">All payment</option>{['none', 'paystack', 'bank_transfer', 'pod'].map((k) => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}</select>
+        <select className="input" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} aria-label="Order source"><option value="">All sources</option><option value="website">Website</option><option value="whatsapp">WhatsApp</option></select>
       </div>
       {!res ? (loadErr ? <RetryError message={loadErr} onRetry={load} /> : <ListSkeleton />) : res.orders.length === 0 ? <div className="card p-10 text-center text-sm text-ink-500">No orders yet. Share your page link to get started.</div> : (
         <div className="card divide-y divide-black/5">
           {res.orders.map((o) => (
             <button key={o._id} onClick={() => setSel(o)} className="flex w-full flex-wrap items-center justify-between gap-2 p-4 text-left hover:bg-mint-50">
               <div><div className="text-sm font-bold">{o.reference} <span className="font-normal text-ink-500">· {o.customerName || 'Customer'}</span></div><div className="text-xs text-ink-500">{new Date(o.createdAt).toLocaleString()} · {o.items.length} item(s){o.branchName && ` · ${o.branchName}`}</div>{o.isScheduled && <div className="mt-0.5 text-xs font-semibold text-violet-700">⏰ Scheduled for {schedLabel(o.scheduledFor, tz)}</div>}</div>
-              <div className="flex items-center gap-2">{o.isScheduled && <Badge color="blue">Scheduled</Badge>}<Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge>{o.channel === 'checkout' && <Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge>}<b className="text-sm">{naira(o.total)}</b></div>
+              <div className="flex items-center gap-2">{o.source === 'whatsapp' && <Badge color="green">WhatsApp</Badge>}{o.isScheduled && <Badge color="blue">Scheduled</Badge>}<Badge color={statusColor(o.status)}>{ORDER_LABEL[o.status]}</Badge>{o.channel === 'checkout' && <Badge color={payColor(o.paymentStatus)}>{PAY_LABEL[o.paymentStatus]}</Badge>}<b className="text-sm">{naira(o.total)}</b></div>
             </button>
           ))}
         </div>
@@ -91,7 +115,8 @@ export default function Orders() {
               {sel.deliveryFee > 0 && <div className="flex justify-between"><span>Delivery</span><span>{naira(sel.deliveryFee)}</span></div>}
               <div className="flex justify-between font-bold"><span>Total</span><span>{naira(sel.total)}</span></div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2"><Badge color={statusColor(sel.status)}>{ORDER_LABEL[sel.status]}</Badge>{sel.channel === 'checkout' && <><Badge color={payColor(sel.paymentStatus)}>{PAY_LABEL[sel.paymentStatus]}</Badge><Badge>{sel.paymentMethod.replace('_', ' ')}</Badge></>}</div>
+            <div className="mt-3 flex flex-wrap gap-2"><Badge color={statusColor(sel.status)}>{ORDER_LABEL[sel.status]}</Badge>{sel.source === 'whatsapp' && <Badge color="green">Ordered on WhatsApp</Badge>}{sel.channel === 'checkout' && <><Badge color={payColor(sel.paymentStatus)}>{PAY_LABEL[sel.paymentStatus]}</Badge><Badge>{sel.paymentMethod.replace('_', ' ')}</Badge></>}</div>
+            {sel.source === 'whatsapp' && <WaNotifications order={sel} />}
             {sel.paymentMethod === 'bank_transfer' && <ProofReview order={sel} onDone={(o) => { setSel(o); load(); }} />}
             {err && <div className="mt-3"><Alert>{err}</Alert></div>}
             {needsPayment(sel) && sel.status !== 'cancelled' && (
